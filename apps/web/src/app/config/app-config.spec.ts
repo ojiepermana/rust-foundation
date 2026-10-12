@@ -67,13 +67,26 @@ describe('validateAppConfig', () => {
     expect(() => validateAppConfig({ apiBaseUrl })).toThrow(Error);
   });
 
+  // Parity with the Rust rule (char::is_whitespace or char::is_control), added
+  // by the author on top of the spec vectors. The same code points are listed
+  // in apps/api/src/config.rs, so the two languages cannot drift apart.
+  const SPACE_OR_CONTROL = [
+    0x00, 0x09, 0x0a, 0x0d, 0x1f, 0x20, 0x7f, 0x85, 0x9f, 0xa0, 0x1680, 0x2000, 0x200a, 0x2028,
+    0x2029, 0x202f, 0x205f, 0x3000,
+  ];
+  const NEITHER_SPACE_NOR_CONTROL = [0xa1, 0x180e, 0x200b, 0x200c, 0xfeff];
+  const withCodePoint = (codePoint: number) => `/api${String.fromCodePoint(codePoint)}v1`;
+
   // covers: 0002 AC-6
-  it.each(['/a\tpi', '/api v1', '/api\u0000', '/api '])(
-    'rejects whitespace and control characters in %j',
-    (apiBaseUrl) => {
-      expect(() => validateAppConfig({ apiBaseUrl })).toThrow(Error);
-    },
-  );
+  it.each(SPACE_OR_CONTROL)('rejects code point %i inside apiBaseUrl', (codePoint) => {
+    expect(() => validateAppConfig({ apiBaseUrl: withCodePoint(codePoint) })).toThrow(Error);
+  });
+
+  // covers: 0002 AC-6
+  it.each(NEITHER_SPACE_NOR_CONTROL)('accepts code point %i inside apiBaseUrl', (codePoint) => {
+    const apiBaseUrl = withCodePoint(codePoint);
+    expect(validateAppConfig({ apiBaseUrl })).toEqual({ apiBaseUrl });
+  });
 
   // covers: 0002 AC-6
   it.each([null, undefined, [], ['/api'], '/api', 42, true])(

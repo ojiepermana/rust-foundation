@@ -48,3 +48,16 @@ _Langkah diturunkan dari acceptance criteria dan tabel Value sourcing spec 0002.
 ## Acceptance-criteria coverage
 
 - AC-1 status `78`, header, baris per variabel, urutan skema, wildcard · AC-2 default `127.0.0.1:3000`, override host dan port, IPv6 dalam kurung siku, `cannot bind` · AC-3 matriks staging dan production dengan kontrol development dan test · AC-4 penanda password, `Debug` teredaksi, `<NAMA>_FILE` · AC-5 `.env.example` sama dengan spec, aturan git, sinkronisasi skema · AC-6 `config.json` runtime, ganti tanpa build ulang, alert saat gagal · AC-7 pindaian bundle dan pemeriksaan statis
+
+## Catatan tafsiran
+
+Bagian spec yang diam dibangun dengan bacaan paling harfiah dan ketat, lalu dikunci test. Bila Anda ingin mengubah salah satunya, ubah lewat spec (`/architect`), bukan diam diam di kode.
+
+- Port (`APP_PORT`, port URL database, port origin CORS) hanya digit ASCII, tanpa tanda `+` atau `-`.
+- "Spasi" dibaca sebagai whitespace Unicode (`char::is_whitespace`), sama di Rust dan TypeScript; kedua test memakai daftar code point yang sama.
+- Query URL database: setiap item berbentuk `k=v` dengan kunci tidak kosong; nilai boleh kosong; `?` kosong dan `&` di akhir ditolak; larangan karakter mentah berlaku untuk kunci dan nilai.
+- Batas 8 KiB `<NAMA>_FILE` dihitung dari byte mentah sebelum satu baris baru dibuang.
+- Nilai `<NAMA>_FILE` yang bukan UTF-8 dilaporkan pada baris `<NAMA>_FILE: must be valid UTF-8`.
+- `Config` tidak menyimpan `APP_ENV`; nilainya hanya dipakai saat validasi. Fitur yang butuh `APP_ENV` menambah field di `Config`, bukan membaca env lagi.
+- Aturan URL bersama hanya memeriksa yang disebut spec, jadi port pada bentuk URL tidak divalidasi.
+- `startApp` mencatat kegagalan bootstrap ke `logError` tanpa alert konfigurasi, sama dengan `catch` di `main.ts` lama.

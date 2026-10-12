@@ -345,7 +345,9 @@ where
             Ok(None)
         };
 
+        // The arm order is the rule order; the first arm that matches decides.
         let value = match (direct, from_file) {
+            // Rule 1: both sources set is a conflict.
             (direct, from_file) if is_set(&direct) && is_set(&from_file) => {
                 self.fail(
                     var.name,
@@ -353,21 +355,25 @@ where
                 );
                 return Source::Failed;
             }
+            // Rule 2 for the file variable: its path is not UTF-8.
             (_, Err(NotUnicode)) => {
                 self.fail(&file_name, MSG_UTF8);
                 return Source::Failed;
             }
+            // Rule 1: read the file; its problems name `<NAME>_FILE`.
             (_, Ok(Some(path))) if !path.is_empty() => {
                 match self.read_secret_file(&file_name, &path) {
                     Some(value) => value,
                     None => return Source::Failed,
                 }
             }
+            // Rule 2: the variable itself is not UTF-8.
             (Err(NotUnicode), _) => {
                 self.fail(var.name, MSG_UTF8);
                 return Source::Failed;
             }
             (Ok(Some(value)), _) if !value.is_empty() => value,
+            // Rule 3: empty means unset; a required variable fails here.
             _ if var.required => {
                 self.fail(var.name, MSG_REQUIRED);
                 return Source::Failed;
@@ -375,6 +381,7 @@ where
             _ => return Source::Unset,
         };
 
+        // Rule 4: surrounding whitespace, checked on the env value or file content.
         if value.starts_with(char::is_whitespace) || value.ends_with(char::is_whitespace) {
             self.fail(var.name, MSG_WHITESPACE);
             return Source::Failed;
@@ -1312,13 +1319,39 @@ mod tests {
                 "{value}"
             );
         }
-        for value in [
-            "/a\tpi",
-            "/api\u{a0}v1",
-            "/api\u{0}",
-            "https://api.example.com\\x",
-        ] {
-            assert!(!is_valid_base_url(value), "{value:?} should be invalid");
+        assert!(!is_valid_base_url("https://api.example.com\\x"));
+    }
+
+    // Parity with `isValidBaseUrl` in apps/web/src/app/config/app-config.ts,
+    // added by the author on top of the spec vectors. The TypeScript test lists
+    // the same code points, so the two languages cannot drift apart.
+    const SPACE_OR_CONTROL: &[u32] = &[
+        0x00, 0x09, 0x0a, 0x0d, 0x1f, 0x20, 0x7f, 0x85, 0x9f, 0xa0, 0x1680, 0x2000, 0x200a, 0x2028,
+        0x2029, 0x202f, 0x205f, 0x3000,
+    ];
+    const NEITHER_SPACE_NOR_CONTROL: &[u32] = &[0xa1, 0x180e, 0x200b, 0x200c, 0xfeff];
+
+    fn with_code_point(code_point: u32) -> String {
+        let c = char::from_u32(code_point).expect("a valid code point");
+        format!("/api{c}v1")
+    }
+
+    // covers: 0002 AC-3
+    #[test]
+    fn whitespace_and_control_characters_match_the_frontend_rule() {
+        for code_point in SPACE_OR_CONTROL {
+            let value = with_code_point(*code_point);
+            assert!(
+                !is_valid_base_url(&value),
+                "U+{code_point:04X} should be rejected"
+            );
+        }
+        for code_point in NEITHER_SPACE_NOR_CONTROL {
+            let value = with_code_point(*code_point);
+            assert!(
+                is_valid_base_url(&value),
+                "U+{code_point:04X} should be accepted"
+            );
         }
     }
 

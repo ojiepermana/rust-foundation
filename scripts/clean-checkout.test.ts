@@ -159,6 +159,7 @@ describe('clean checkout', () => {
   );
 
   // covers: 0002 AC-6, 0002 AC-7
+  // Reads the dist built by the previous step, so it cannot run on its own.
   test('the web build reads config.json at runtime and has no build time configuration', () => {
     const browser = join(copyRoot, 'apps/web/dist/web/browser');
     expect(JSON.parse(readFileSync(join(browser, 'config.json'), 'utf8'))).toEqual({

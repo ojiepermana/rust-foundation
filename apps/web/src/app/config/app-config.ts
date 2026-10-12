@@ -110,8 +110,9 @@ export async function startApp(deps: StartAppDeps): Promise<void> {
     config = await loadAppConfig(deps.fetchFn);
   } catch (error: unknown) {
     if (deps.root !== null) {
-      deps.root.textContent = LOAD_FAILURE_MESSAGE;
+      // The role goes first so the element is already a live region when the text lands.
       deps.root.setAttribute('role', 'alert');
+      deps.root.textContent = LOAD_FAILURE_MESSAGE;
     }
     deps.logError(error);
     return;
