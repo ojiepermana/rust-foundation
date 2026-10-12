@@ -76,6 +76,8 @@ Saya menilai setiap keputusan terhadap teks spec. Tidak ada yang bertentangan de
 - Nit `Loader::source`: setiap arm diberi komentar nomor aturan.
 - Nit urutan test di `clean-checkout.test.ts`: diberi komentar ketergantungan.
 - Nit tafsiran `<NAMA>_FILE` bukan UTF-8 dan `app_env`: dicatat di bagian Catatan tafsiran `verify.md`.
-- Minor 1 (pembacaan `_FILE` tanpa batas) dan Minor 2 (URL di `<NAMA>_FILE` tercetak): tidak diubah, karena spec menyebut `std::fs::read` dan "path apa adanya" secara eksplisit. Keduanya dilaporkan sebagai keputusan yang perlu diambil lewat `/architect`.
+- Minor 1 dan Minor 2 sempat ditahan karena spec menyebut `std::fs::read` dan "path apa adanya" secara eksplisit. Setelah pengguna memutuskan (spec 0002 diperbarui di commit `28d2c92`, 2026-10-13), keduanya diperbaiki:
+  - Minor 1: `main` kini membuka file dan membaca paling banyak 8 KiB + 1 byte (`read_secret_file` di `apps/api/src/main.rs`, tanda tangan `read_file` tetap). `/dev/zero` dan file 1 MiB gagal seketika dengan `file is larger than 8 KiB`, dikunci unit test di `main.rs` dan dua test proses di `tests/config.rs`.
+  - Minor 2: bila nilai `<NAMA>_FILE` memuat `://` atau `@` dan file tidak bisa dibaca, baris menjadi `cannot read file (path not shown because it looks like a URL or credential)` tanpa path. Dikunci unit test dan test proses yang memastikan nilai itu tidak muncul di stderr.
 - Nit `StartAppDeps` tidak diekspor: tidak diubah, karena spec menyebut daftar ekspor `app-config.ts`.
 - Nit `AGENTS.md` usang: milik `/sync` setelah merge.

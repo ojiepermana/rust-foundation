@@ -109,8 +109,12 @@ pub const SCHEMA: &[Var] = &[
     WEB_API_BASE_URL,
 ];
 
-const MAX_SECRET_FILE_BYTES: usize = 8 * 1024;
+/// The largest `<NAME>_FILE` content accepted. `main` reads at most one byte
+/// more, so a larger file fails without being loaded.
+pub const MAX_SECRET_FILE_BYTES: usize = 8 * 1024;
 
+const MSG_FILE_PATH_HIDDEN: &str =
+    "cannot read file (path not shown because it looks like a URL or credential)";
 const MSG_UTF8: &str = "must be valid UTF-8";
 const MSG_REQUIRED: &str = "is required";
 const MSG_WHITESPACE: &str = "must not start or end with whitespace";
@@ -390,10 +394,15 @@ where
     }
 
     /// Reads a `<NAME>_FILE` secret. Messages name the path, never the content
-    /// or the operating system error.
+    /// or the operating system error, and hide a path that looks like a URL or
+    /// a credential put there by mistake.
     fn read_secret_file(&mut self, file_name: &str, path: &str) -> Option<String> {
         let Ok(bytes) = (self.read_file)(Path::new(path)) else {
-            self.fail(file_name, format!("cannot read file \"{path}\""));
+            if path.contains("://") || path.contains('@') {
+                self.fail(file_name, MSG_FILE_PATH_HIDDEN);
+            } else {
+                self.fail(file_name, format!("cannot read file \"{path}\""));
+            }
             return None;
         };
         if bytes.len() > MAX_SECRET_FILE_BYTES {
@@ -848,6 +857,10 @@ mod tests {
     // covers: 0002 AC-1
     #[test]
     fn message_texts_match_the_spec_table() {
+        assert_eq!(
+            MSG_FILE_PATH_HIDDEN,
+            "cannot read file (path not shown because it looks like a URL or credential)"
+        );
         assert_eq!(MSG_UTF8, "must be valid UTF-8");
         assert_eq!(MSG_REQUIRED, "is required");
         assert_eq!(MSG_WHITESPACE, "must not start or end with whitespace");
@@ -1621,6 +1634,44 @@ mod tests {
                 .error(),
             line("DATABASE_MIGRATOR_URL_FILE", MSG_UTF8)
         );
+    }
+
+    // covers: 0002 AC-4
+    #[test]
+    fn an_unreadable_file_value_that_looks_like_a_url_or_credential_is_not_printed() {
+        for (name, value) in [
+            (
+                "DATABASE_URL_FILE",
+                format!("postgres://app:{MARKER}@db/app"),
+            ),
+            ("DATABASE_URL_FILE", format!("/run/secrets/app:{MARKER}@db")),
+            ("DATABASE_URL_FILE", format!("file://{MARKER}")),
+            (
+                "DATABASE_MIGRATOR_URL_FILE",
+                format!("postgresql://m:{MARKER}@db/app"),
+            ),
+        ] {
+            let mut fixture = Fixture::development();
+            if name == "DATABASE_URL_FILE" {
+                fixture.remove("DATABASE_URL");
+            }
+            // `error()` also asserts that the marker never appears.
+            let error = fixture.set(name, &value).error();
+            assert_eq!(error, line(name, MSG_FILE_PATH_HIDDEN), "{value}");
+            assert!(!error.contains("://") && !error.contains('@'), "{error}");
+        }
+    }
+
+    // covers: 0002 AC-4
+    #[test]
+    fn a_readable_file_is_used_even_when_its_path_has_an_at_sign() {
+        let path = "/run/secrets/app@db/url";
+        let config = Fixture::development()
+            .remove("DATABASE_URL")
+            .set("DATABASE_URL_FILE", path)
+            .file(path, VALID_URL.as_bytes())
+            .config();
+        assert_eq!(config.database_url.expose(), VALID_URL);
     }
 
     // covers: 0002 AC-1, 0002 AC-3

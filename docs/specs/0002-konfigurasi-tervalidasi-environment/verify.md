@@ -1,4 +1,4 @@
-# Verify: Konfigurasi tervalidasi dan environment · spec 0002 · updated 2026-10-12
+# Verify: Konfigurasi tervalidasi dan environment · spec 0002 · updated 2026-10-13
 
 _Langkah diturunkan dari acceptance criteria dan tabel Value sourcing spec 0002. `/check verify` menjalankannya; `/test` mengunci yang tahan lama. Setiap perintah backend memakai `env -i` agar `.env` atau export shell tidak ikut terbaca, dan port bebas kecuali langkah port default._
 
@@ -17,6 +17,10 @@ _Langkah diturunkan dari acceptance criteria dan tabel Value sourcing spec 0002.
 - [x] Isi password `DATABASE_URL` dengan penanda unik; start sukses lalu hentikan, dan start gagal (URL rusak, `ssl-mode`, staging tanpa `sslmode`) → `grep` penanda di stdout dan stderr tidak menemukan apa pun → AC-4
 - [x] `DATABASE_URL_FILE` menunjuk file sementara berisi URL valid diakhiri `\n` → server start; dengan `DATABASE_URL` juga diisi → `DATABASE_URL: set either DATABASE_URL or DATABASE_URL_FILE, not both` → AC-4
 - [x] `DATABASE_URL_FILE` ke path yang tidak ada, file berisi `\n` saja, file 9000 byte, dan file berisi byte `0xff` → berturut turut `cannot read file "<path>"`, `file is empty`, `file is larger than 8 KiB`, `file is not valid UTF-8` pada baris `DATABASE_URL_FILE:`, tanpa isi file → AC-4
+- [x] `env -i APP_ENV=development DATABASE_URL_FILE=/dev/zero ./target/debug/api` di bawah `/usr/bin/time` → status `78` dalam kurang dari satu detik, baris `DATABASE_URL_FILE: file is larger than 8 KiB`, dan memori puncak tetap kecil (file tidak dimuat penuh) → AC-4
+- [x] `DATABASE_URL_FILE` ke file 1 MiB → status `78` seketika dengan baris `DATABASE_URL_FILE: file is larger than 8 KiB` → AC-4
+- [x] `env -i APP_ENV=production DATABASE_URL_FILE='postgres://app:<penanda>@db.internal/app' ./target/debug/api` → status `78`, satu baris `DATABASE_URL_FILE: cannot read file (path not shown because it looks like a URL or credential)`, dan stderr tidak memuat penanda, `postgres://`, atau `db.internal` → AC-4
+- [x] `DATABASE_URL_FILE` ke path yang tidak ada dan memuat `@` saja (tanpa `://`) → pesan path tersembunyi yang sama; path tanpa `://` dan `@` → tetap `cannot read file "<path>"`; file yang bisa dibaca di path yang memuat `@` → server start → AC-4
 - [x] `cargo test --locked -p api secrets_are_redacted_in_debug_and_display` → lulus; `Debug` konfigurasi menampilkan `[redacted]` dua kali dan tidak memuat password → AC-4
 - [x] Bandingkan `.env.example` dengan blok di spec 0002 (`diff`) → identik, secret kosong → AC-5
 - [x] `git check-ignore --no-index -v .env .env.local .env.production apps/web/.env .env.example` → empat pertama cocok dengan `.env` atau `.env.*`, `.env.example` cocok dengan `!.env.example` (tidak diabaikan) → AC-5
@@ -49,15 +53,6 @@ _Langkah diturunkan dari acceptance criteria dan tabel Value sourcing spec 0002.
 
 - AC-1 status `78`, header, baris per variabel, urutan skema, wildcard · AC-2 default `127.0.0.1:3000`, override host dan port, IPv6 dalam kurung siku, `cannot bind` · AC-3 matriks staging dan production dengan kontrol development dan test · AC-4 penanda password, `Debug` teredaksi, `<NAMA>_FILE` · AC-5 `.env.example` sama dengan spec, aturan git, sinkronisasi skema · AC-6 `config.json` runtime, ganti tanpa build ulang, alert saat gagal · AC-7 pindaian bundle dan pemeriksaan statis
 
-## Catatan tafsiran
+## Tafsiran
 
-Bagian spec yang diam dibangun dengan bacaan paling harfiah dan ketat, lalu dikunci test. Bila Anda ingin mengubah salah satunya, ubah lewat spec (`/architect`), bukan diam diam di kode.
-
-- Port (`APP_PORT`, port URL database, port origin CORS) hanya digit ASCII, tanpa tanda `+` atau `-`.
-- "Spasi" dibaca sebagai whitespace Unicode (`char::is_whitespace`), sama di Rust dan TypeScript; kedua test memakai daftar code point yang sama.
-- Query URL database: setiap item berbentuk `k=v` dengan kunci tidak kosong; nilai boleh kosong; `?` kosong dan `&` di akhir ditolak; larangan karakter mentah berlaku untuk kunci dan nilai.
-- Batas 8 KiB `<NAMA>_FILE` dihitung dari byte mentah sebelum satu baris baru dibuang.
-- Nilai `<NAMA>_FILE` yang bukan UTF-8 dilaporkan pada baris `<NAMA>_FILE: must be valid UTF-8`.
-- `Config` tidak menyimpan `APP_ENV`; nilainya hanya dipakai saat validasi. Fitur yang butuh `APP_ENV` menambah field di `Config`, bukan membaca env lagi.
-- Aturan URL bersama hanya memeriksa yang disebut spec, jadi port pada bentuk URL tidak divalidasi.
-- `startApp` mencatat kegagalan bootstrap ke `logError` tanpa alert konfigurasi, sama dengan `catch` di `main.ts` lama.
+Delapan tafsiran yang dulu dicatat di sini (port hanya digit ASCII, whitespace Unicode, item query `k=v`, batas 8 KiB dari byte mentah, `<NAMA>_FILE` bukan UTF-8 di baris `_FILE`, `Config` tanpa `app_env`, port bentuk URL tidak divalidasi, dan kegagalan bootstrap hanya dicatat) sudah dikonfirmasi pengguna dan kini tertulis di spec 0002, bagian "Tafsiran yang dikonfirmasi pengguna (2026-10-13)". Test yang menguncinya tidak berubah.

@@ -4,7 +4,7 @@
 mod common;
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener, TcpStream};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use common::{Server, TempFile, api, free_port, ipv6_loopback_available, run_to_exit};
 
@@ -329,6 +329,52 @@ fn secret_file_problems_name_the_variable_and_the_path() {
             "DATABASE_URL: must be a postgres:// or postgresql:// URL with user, host, and database name"
         ])
     );
+}
+
+// covers: 0002 AC-4
+#[test]
+fn a_url_put_in_the_file_variable_is_never_printed() {
+    let value = format!("postgres://app:{MARKER}@db.internal/app");
+    let stderr = expect_config_failure(&[("APP_ENV", "production"), ("DATABASE_URL_FILE", &value)]);
+    assert_eq!(
+        stderr,
+        report(&[
+            "DATABASE_URL_FILE: cannot read file (path not shown because it looks like a URL or credential)"
+        ])
+    );
+    assert!(!stderr.contains(&value), "{stderr}");
+    assert!(!stderr.contains("db.internal"), "{stderr}");
+}
+
+/// A start whose secret file is too large must stop at the size check at
+/// once, without loading the file.
+fn expect_fast_size_failure(path: &str) {
+    let started = Instant::now();
+    let stderr = expect_config_failure(&[("APP_ENV", "development"), ("DATABASE_URL_FILE", path)]);
+    let elapsed = started.elapsed();
+    assert_eq!(
+        stderr,
+        report(&["DATABASE_URL_FILE: file is larger than 8 KiB"])
+    );
+    assert!(
+        elapsed < Duration::from_secs(5),
+        "the size check took {elapsed:?}"
+    );
+}
+
+// covers: 0002 AC-4
+#[test]
+fn a_one_mebibyte_secret_file_fails_fast_with_the_size_message() {
+    let file = TempFile::new(&vec![b'a'; 1024 * 1024]);
+    expect_fast_size_failure(file.path());
+}
+
+// covers: 0002 AC-4
+#[cfg(unix)]
+#[test]
+fn an_endless_device_as_secret_file_fails_fast_with_the_size_message() {
+    // A full read of /dev/zero never ends; only a bounded read can pass.
+    expect_fast_size_failure("/dev/zero");
 }
 
 // covers: 0002 AC-1
