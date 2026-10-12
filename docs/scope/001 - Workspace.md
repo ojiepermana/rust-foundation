@@ -19,7 +19,7 @@ Audit versi dan dukungan (Angular 22 atau lebih baru yang stabil, Node.js, TypeS
 - [x] Review (model baru): `/check review stack, audit, dan scaffold workspace` (`docs/reviews/2026-10-12-main-workspace-scaffold.md`, Approve with nits)
 - [x] Dokumentasikan: `/document stack, audit, dan scaffold workspace` (`CHANGELOG.md`)
 
-### 2. Standar koding dan tooling · in-progress
+### 2. Standar koding dan tooling · done
 
 Tangkap konvensi nyata dari scaffold ke `AGENTS.md` root (gaya Rust dan TypeScript, aturan batas modul, perlakuan file hasil generate), lalu pasang format, Clippy, TypeScript strict, lint, hook `pre-commit`, dan CI dasar untuk fast PR checks.
 
@@ -27,7 +27,7 @@ Tangkap konvensi nyata dari scaffold ke `AGENTS.md` root (gaya Rust dan TypeScri
 
 - [x] Tangkap konvensi dan pilihan tooling: `/audit` (`AGENTS.md`, `apps/api/AGENTS.md`, `apps/web/AGENTS.md`)
 - [x] Pasang tooling: `/develop tooling` (code in `eslint.config.mjs`, `.prettierrc`, `.githooks/`, `.github/workflows/ci.yml`, `scripts/generated.ts`, `scripts/check-generated.ts`)
-- [ ] Verifikasi: `/check verify tooling`
+- [x] Verifikasi: `/check verify tooling` (salinan bersih lokal dan [run CI GitHub 38226987025](https://github.com/ojiepermana/rust-foundation/actions/runs/38226987025) lulus)
 - [x] Pastikan berjalan bersih: `/test` (`scripts/generated.test.ts`, `scripts/tooling.test.ts`, `scripts/clean-checkout.test.ts`)
 - [x] Review (model baru): `/check review tooling` (`docs/reviews/2026-10-12-main-tooling.md`, Approve with nits)
 - [x] Dokumentasikan: `/document tooling` (`CHANGELOG.md`)
