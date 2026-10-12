@@ -728,7 +728,7 @@ describe('loadEnvFile', () => {
 // environment Compose would see, and answers from FAKE_DOCKER_* variables. Values are dummies.
 const FAKE_DOCKER = `#!/bin/bash
 printf 'ARGS %s\\n' "$*" >> "$FAKE_DOCKER_LOG"
-if [ "$1" = info ]; then exit "\${FAKE_DOCKER_INFO_STATUS:-0}"; fi
+if [ "$1" = info ]; then printf '%s\\n' "\${FAKE_DOCKER_INFO_VERSION-29.0.0}"; exit "\${FAKE_DOCKER_INFO_STATUS:-0}"; fi
 printf 'ENV admin=%s migrator=%s runtime=%s port=%s cwd=%s\\n' \\
   "\${POSTGRES_ADMIN_PASSWORD-<unset>}" "\${POSTGRES_MIGRATOR_PASSWORD-<unset>}" \\
   "\${POSTGRES_RUNTIME_PASSWORD-<unset>}" "\${POSTGRES_PORT-<unset>}" "$(pwd -P)" >> "$FAKE_DOCKER_LOG"
@@ -832,6 +832,14 @@ describe.skipIf(IS_WINDOWS)('db.ts against a fake docker command', () => {
   // covers: AC-1
   test('a stopped Docker daemon stops the command before any Compose call', () => {
     const result = runFake(['status'], { FAKE_DOCKER_INFO_STATUS: '1' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe('database: Docker is not running; start Docker and try again\n');
+    expect(calls('ARGS')).toEqual(['ARGS info --format {{.ServerVersion}}']);
+  });
+
+  // covers: AC-1 (a CI runner whose docker info exits 0 without a reachable daemon)
+  test('an empty server version counts as a stopped Docker daemon', () => {
+    const result = runFake(['up'], { FAKE_DOCKER_INFO_VERSION: '' });
     expect(result.status).toBe(1);
     expect(result.stderr).toBe('database: Docker is not running; start Docker and try again\n');
     expect(calls('ARGS')).toEqual(['ARGS info --format {{.ServerVersion}}']);

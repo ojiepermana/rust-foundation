@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task `typecheck` kini juga memeriksa `tests/` lewat `tests/tsconfig.json`, `scripts/tsconfig.json` mencakup subfolder, dan `bun run test:scripts` kini membutuhkan CLI `docker` dengan plugin Compose, tanpa perlu daemon (fitur 5).
 - Semua script Bun memakai `--no-env-file` dan memuat `.env` hanya lewat `scripts/env-file.ts`; test lambat pindah ke `tests/integration/`, `.gitattributes` memaksa akhir baris LF, dan test lama diaudit agar berjalan di macOS dan Windows (fitur 4).
 
+### Fixed
+
+- Temuan CI pertama fitur 4 di tiga OS: `check:generated` kini menulis path relatif dengan garis miring yang sama di Windows; `db:*` dan harness test menganggap `docker info` dengan versi kosong sebagai daemon yang tidak berjalan; `bun run dev` menaruh direktori Node yang dicatat `bun run` paling depan di PATH dev server, sehingga Angular tidak berjalan di Node lain dari image runner. Pesan guard Node kini juga menyebut path runtime yang menjalankannya (fitur 4).
+
 ### Security
 
 - `npm install`, `npx`, dan `npm exec` ditolak di dalam repo lewat `devEngines`, sehingga tidak ada lockfile npm yang bisa muncul tanpa sengaja; lifecycle script dependency tetap diblokir sesuai default Bun, dan analytics Angular CLI dimatikan.

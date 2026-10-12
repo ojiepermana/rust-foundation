@@ -2,7 +2,9 @@
 // rebuilds the backend when Rust sources change, and stops every child cleanly (spec 0004).
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import {
+  accessSync,
   chmodSync,
+  constants,
   copyFileSync,
   createWriteStream,
   type Dirent,
@@ -14,7 +16,7 @@ import {
   type WriteStream,
 } from 'node:fs';
 import { createConnection, createServer } from 'node:net';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import {
@@ -25,8 +27,10 @@ import {
   isIgnoredWatchFile,
   LineSplitter,
   parseDevArgs,
+  pathKey,
   readyLine,
   validateDevEnv,
+  withNodeFirst,
 } from './dev-support';
 import { loadEnvFile } from './env-file';
 import { DEFAULT_POSTGRES_PORT } from './postgres-env';
@@ -238,6 +242,23 @@ function withoutSecrets(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   );
 }
 
+function isExecutable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Angular runs on the Node.js the developer chose: bun run records it in NODE, and without
+// bun run the first node on PATH counts. The guard in apps/web still checks its version.
+function chosenNode(env: NodeJS.ProcessEnv): string | undefined {
+  const recorded = env.NODE;
+  if (recorded !== undefined && recorded !== '' && isExecutable(recorded)) return recorded;
+  return Bun.which('node', { PATH: env[pathKey(env)] ?? '' }) ?? undefined;
+}
+
 function mtimeOf(path: string): number | undefined {
   try {
     return existsSync(path) ? statSync(path).mtimeMs : undefined;
@@ -443,8 +464,10 @@ class Supervisor {
   // ------------------------------------------------------------ web
 
   private startWeb(): Running {
+    const node = chosenNode(process.env);
+    const base = withoutSecrets(process.env);
     const env = {
-      ...withoutSecrets(process.env),
+      ...(node === undefined ? base : withNodeFirst(base, node, delimiter)),
       DEV_API_TARGET: apiTarget(this.settings.apiHost, this.settings.apiPort),
     };
     const web = startChild(

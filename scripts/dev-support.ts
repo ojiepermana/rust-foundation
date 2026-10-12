@@ -1,7 +1,7 @@
 // Pure helpers of the dev supervisor (spec 0004), kept apart from scripts/dev.ts so tests can
 // import them without starting anything.
 import { isIP } from 'node:net';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 export interface DevOptions {
   envFile: string | undefined;
@@ -147,6 +147,24 @@ export function exitStatus(code: number | null, signal: NodeJS.Signals | null): 
     SIGTERM: 15,
   };
   return 128 + (signal === null ? 0 : (numbers[signal] ?? 0));
+}
+
+// The key that holds the search path; Windows spells it Path.
+export function pathKey(env: Record<string, string | undefined>): string {
+  return Object.keys(env).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH';
+}
+
+// Puts the directory of the chosen Node.js first on the search path, so every nested
+// script of the dev server runs Angular on that same binary.
+export function withNodeFirst(
+  env: Record<string, string | undefined>,
+  node: string,
+  delimiter: string,
+): Record<string, string | undefined> {
+  const key = pathKey(env);
+  const current = env[key] ?? '';
+  const first = dirname(node);
+  return { ...env, [key]: current === '' ? first : `${first}${delimiter}${current}` };
 }
 
 // Splits a byte stream into lines, dropping a carriage return before each newline and

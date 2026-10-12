@@ -142,7 +142,7 @@ Dijalankan dengan `bun --no-env-file scripts/db.ts <subperintah>`. Root `package
 
 Urutan setiap subperintah: muat `.env` lewat loader; untuk `up` dan `reset` validasi variabel (AC-2); periksa Docker; jalankan Compose dengan `-f infrastructure/compose.yaml` dari root repo. `COMPOSE_PROJECT_NAME` di env mengganti nama project (dipakai test).
 
-- Pemeriksaan Docker: `docker info --format '{{.ServerVersion}}'`. Perintah tidak ditemukan: `database: docker command not found; install Docker and try again`. Status bukan nol: `database: Docker is not running; start Docker and try again`. Keduanya status `1`.
+- Pemeriksaan Docker: `docker info --format '{{.ServerVersion}}'`. Perintah tidak ditemukan: `database: docker command not found; install Docker and try again`. Status bukan nol, atau output versi kosong (sebagian versi Docker CLI keluar dengan status `0` walaupun daemon tidak terjangkau): `database: Docker is not running; start Docker and try again`. Keduanya status `1`.
 - `up`: `docker compose -f infrastructure/compose.yaml up -d --wait --wait-timeout 120 postgres`. Bila gagal: cetak `database: postgres did not become healthy; if this was its first start, run "bun run db:reset"` lalu teruskan status Compose.
 - `down`: `docker compose -f infrastructure/compose.yaml down`. Untuk `down` dan `status`, password yang kosong diisi placeholder bukan secret (`unused-placeholder-for-compose`) di env anak saja, agar interpolasi `:?` tidak menghalangi.
 - `status`: `docker compose -f infrastructure/compose.yaml ps postgres`, keluaran diteruskan apa adanya, status `0` walaupun service tidak berjalan.

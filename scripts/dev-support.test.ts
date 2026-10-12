@@ -1,14 +1,16 @@
 import { describe, expect, test } from 'bun:test';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   apiTarget,
   exitStatus,
   isIgnoredWatchFile,
   LineSplitter,
   parseDevArgs,
+  pathKey,
   readyLine,
   urlHost,
   validateDevEnv,
+  withNodeFirst,
 } from './dev-support';
 
 // Pure helpers of the dev supervisor (spec 0004); the supervisor itself is proven end to end in
@@ -162,6 +164,31 @@ describe('watcher filter', () => {
 
   test.each(['main.rs', 'Cargo.toml', 'mod.rs', 'schema.sql'])('watches %s', (name) => {
     expect(isIgnoredWatchFile(name)).toBe(false);
+  });
+});
+
+describe('withNodeFirst', () => {
+  const node = join('/opt', 'node-24', 'bin', 'node');
+  const nodeDir = join('/opt', 'node-24', 'bin');
+
+  // covers: 0004 AC-3 (Angular runs on the Node.js the developer chose)
+  test('puts the directory of the chosen node first and keeps the rest of the path', () => {
+    expect(withNodeFirst({ PATH: '/a:/b', HOME: '/home/dev' }, node, ':')).toEqual({
+      PATH: `${nodeDir}:/a:/b`,
+      HOME: '/home/dev',
+    });
+  });
+
+  test('keeps the Windows spelling of the key', () => {
+    expect(pathKey({ Path: 'C:\\Windows' })).toBe('Path');
+    expect(withNodeFirst({ Path: 'C:\\Windows' }, node, ';')).toEqual({
+      Path: `${nodeDir};C:\\Windows`,
+    });
+  });
+
+  test('starts a missing or empty path with the node directory alone', () => {
+    expect(withNodeFirst({}, node, ':')).toEqual({ PATH: nodeDir });
+    expect(withNodeFirst({ PATH: '' }, node, ':')).toEqual({ PATH: nodeDir });
   });
 });
 

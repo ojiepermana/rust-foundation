@@ -133,7 +133,8 @@ function composeFiles(persistent: boolean): string[] {
 
 function requireDocker(env: Record<string, string>): void {
   const result = run(['info', '--format', '{{.ServerVersion}}'], env);
-  if (result.status !== 0) {
+  // An empty version means the CLI answered without reaching a daemon.
+  if (result.status !== 0 || result.stdout.trim() === '') {
     throw new Error(
       `the PostgreSQL tests need a running Docker daemon: ${result.stderr.trim() || 'docker info failed'}`,
     );

@@ -514,6 +514,35 @@ describe('bun run dev', () => {
     expect(await run.exited).toBe(1);
     expect(run.output()).toContain(`[dev] cannot read env file: ${scratch}`);
   });
+
+  // covers: 0004 AC-3 (Angular runs on the Node.js that bun run recorded in NODE)
+  test.skipIf(isWindows)(
+    'runs the dev server on the node recorded in NODE when PATH lists another node first',
+    async () => {
+      const realNode = Bun.which('node');
+      if (realNode === null) throw new Error('node is not on PATH');
+      const fakeBin = join(scratch, 'fake-node-bin');
+      mkdirSync(fakeBin, { recursive: true });
+      writeFileSync(join(fakeBin, 'node'), '#!/bin/sh\necho "fake node" >&2\nexit 1\n', {
+        mode: 0o755,
+      });
+      const [api = 0, web = 0, postgres = 0] = await distinctPorts(3);
+      const run = startDev(
+        [
+          '--env-file',
+          writeEnv({ api, web, postgres }),
+          '--state-dir',
+          join(scratch, 'state-node-pin'),
+        ],
+        { env: { PATH: `${fakeBin}:${process.env.PATH ?? ''}`, NODE: realNode } },
+      );
+      await run.waitFor('[dev] ready:');
+      expect(run.output()).not.toContain('fake node');
+      run.child.stdin?.write('q\n');
+      expect(await run.exited).toBe(0);
+    },
+    STEP_TIMEOUT_MS,
+  );
 });
 
 describe('backend reload', () => {

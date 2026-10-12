@@ -90,7 +90,9 @@ if (runsAsScript()) {
     result = { ok: false, reason: `cannot read .nvmrc or package.json: ${error.message}` };
   }
   if (!result.ok) {
-    process.stderr.write(`guard-node: ${result.reason}\n`);
+    process.stderr.write(
+      `guard-node: ${result.reason}\nguard-node: runtime binary ${process.execPath}\n`,
+    );
     process.exit(1);
   }
 }

@@ -128,13 +128,15 @@ function exitStatus(result: SpawnSyncReturns<unknown>): number {
 
 function checkDocker(): number | undefined {
   const result = spawnSync('docker', ['info', '--format', '{{.ServerVersion}}'], {
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    encoding: 'utf8',
   });
   const code = result.error && 'code' in result.error ? result.error.code : undefined;
   if (code === 'ENOENT') {
     return fail('database: docker command not found; install Docker and try again');
   }
-  if (result.error || result.status !== 0) {
+  // Some Docker CLI versions exit 0 with an empty version when the daemon is unreachable.
+  if (result.error || result.status !== 0 || result.stdout.trim() === '') {
     return fail('database: Docker is not running; start Docker and try again');
   }
   return undefined;
