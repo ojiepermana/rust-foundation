@@ -59,6 +59,39 @@ export interface AngularWorkspace {
   projects: Record<string, { architect: Record<string, AngularTarget> } | undefined>;
 }
 
+// Backend configuration names from spec 0002 that have no shared prefix.
+const BACKEND_CONFIG_NAMES = new Set([
+  'COOKIE_SECURE',
+  'CORS_ALLOWED_ORIGINS',
+  'DEV_SEED_ENABLED',
+  'WEB_API_BASE_URL',
+]);
+
+// bun test sets NODE_ENV=test and loads a developer .env and .env.test into the
+// test process, and a git hook may export GIT_DIR or GIT_INDEX_FILE. A child
+// process must see a normal environment, its own repository only, and no
+// backend configuration it did not ask for.
+function inheritable(name: string): boolean {
+  return !(
+    name === 'NODE_ENV' ||
+    name.startsWith('GIT_') ||
+    name.startsWith('APP_') ||
+    name.startsWith('DATABASE_') ||
+    name.endsWith('_FILE') ||
+    BACKEND_CONFIG_NAMES.has(name)
+  );
+}
+
+// The environment for a child process: the inheritable part of this process
+// plus extraEnv, which wins on conflicts.
+export function childEnv(extraEnv: Record<string, string> = {}): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (value !== undefined && inheritable(name)) env[name] = value;
+  }
+  return { ...env, ...extraEnv };
+}
+
 // Files git would put in a commit: tracked plus untracked files that are not ignored.
 export function gitVisibleFiles(): string[] {
   const run = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {

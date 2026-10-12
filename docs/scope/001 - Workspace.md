@@ -41,11 +41,11 @@ Skema konfigurasi backend (nama variabel, tujuan, wajib atau opsional, default a
 **Spec:** [0002](../specs/0002-konfigurasi-tervalidasi-environment/index.md)
 
 - [x] Rancang skema konfigurasi (spec): `/architect konfigurasi tervalidasi dan environment`
-- [ ] Build it: `/develop konfigurasi tervalidasi dan environment`
-  - [ ] Pemuat konfigurasi backend, tabel pesan, status 78, dan bind dari konfigurasi (AC-1, AC-2)
-  - [ ] Grammar URL, aturan lingkungan, secret teredaksi, dan `<NAMA>_FILE` (AC-3, AC-4)
-  - [ ] `.env.example` bagian backend dan aturan git (AC-5)
-  - [ ] `config.json` runtime dan bootstrap Angular (AC-6, AC-7)
+- [x] Build it: `/develop konfigurasi tervalidasi dan environment` (code in `apps/api/src/config.rs`, `apps/api/src/main.rs`, `apps/web/src/app/config/`, `apps/web/public/config.json`, `.env.example`)
+  - [x] Pemuat konfigurasi backend, tabel pesan, status 78, dan bind dari konfigurasi (AC-1, AC-2)
+  - [x] Grammar URL, aturan lingkungan, secret teredaksi, dan `<NAMA>_FILE` (AC-3, AC-4)
+  - [x] `.env.example` bagian backend dan aturan git (AC-5)
+  - [x] `config.json` runtime dan bootstrap Angular (AC-6, AC-7)
 - [ ] Verifikasi: `/check verify konfigurasi tervalidasi dan environment`
 - [ ] Test: `/test konfigurasi tervalidasi dan environment`
 - [ ] Review (model baru): `/check review konfigurasi tervalidasi dan environment`

@@ -1,5 +1,6 @@
 //! Runs the real `api` binary and talks raw HTTP to it, so the skeleton is
-//! proven without adding an HTTP client dependency.
+//! proven without adding an HTTP client dependency. This is the only test that
+//! uses the default port 3000.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -20,13 +21,24 @@ impl Drop for Server {
     }
 }
 
+/// The api binary with an empty environment plus the minimal valid
+/// configuration, so it listens on the default address.
+fn api_command() -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_api"));
+    command.env_clear().env("APP_ENV", "development").env(
+        "DATABASE_URL",
+        "postgres://app:placeholder@127.0.0.1:5432/app_test",
+    );
+    command
+}
+
 fn start_server() -> (Server, String) {
     assert!(
         TcpListener::bind(ADDRESS).is_ok(),
         "port {ADDRESS} is already in use; stop that process before running this test"
     );
     let mut server = Server(
-        Command::new(env!("CARGO_BIN_EXE_api"))
+        api_command()
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -68,7 +80,7 @@ fn status_line(method: &str, path: &str) -> String {
 fn skeleton_listens_on_loopback_answers_404_and_refuses_a_second_bind() {
     let (server, first_line) = start_server();
 
-    // covers: AC-7
+    // covers: AC-7, 0002 AC-2
     assert_eq!(
         first_line.trim_end(),
         "api listening on http://127.0.0.1:3000"
@@ -88,10 +100,8 @@ fn skeleton_listens_on_loopback_answers_404_and_refuses_a_second_bind() {
         );
     }
 
-    // covers: AC-7
-    let second = Command::new(env!("CARGO_BIN_EXE_api"))
-        .output()
-        .expect("run second api instance");
+    // covers: AC-7, 0002 AC-2
+    let second = api_command().output().expect("run second api instance");
     assert!(
         !second.status.success(),
         "a second instance must fail while the port is taken"

@@ -1,7 +1,7 @@
 # 0002. Konfigurasi tervalidasi dan environment
 
 **Date**: 2026-10-12
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
