@@ -47,7 +47,7 @@ Skema konfigurasi backend (nama variabel, tujuan, wajib atau opsional, default a
   - [x] `.env.example` bagian backend dan aturan git (AC-5)
   - [x] `config.json` runtime dan bootstrap Angular (AC-6, AC-7)
 - [x] Verifikasi: `/check verify konfigurasi tervalidasi dan environment` (binary asli dan browser lokal; 33 langkah di `verify.md` lulus)
-- [ ] Test: `/test konfigurasi tervalidasi dan environment`
+- [x] Test: `/test konfigurasi tervalidasi dan environment` (`apps/api/src/config.rs`, `apps/api/tests/config.rs`, `apps/web/src/app/config/app-config.spec.ts`, `scripts/env-example.test.ts`, `scripts/clean-checkout.test.ts`)
 - [ ] Review (model baru): `/check review konfigurasi tervalidasi dan environment`
 - [ ] Dokumentasikan: `/document konfigurasi tervalidasi dan environment`
 

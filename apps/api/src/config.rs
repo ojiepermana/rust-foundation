@@ -1567,6 +1567,53 @@ mod tests {
         }
     }
 
+    // covers: 0002 AC-4
+    #[test]
+    fn a_secret_file_path_is_printed_as_given_before_any_value_rule() {
+        // The source rule (reading the file) runs before the whitespace rule,
+        // and the path is never trimmed or rewritten.
+        assert_eq!(
+            Fixture::development()
+                .remove("DATABASE_URL")
+                .set("DATABASE_URL_FILE", " /run/secrets/db ")
+                .error(),
+            line(
+                "DATABASE_URL_FILE",
+                "cannot read file \" /run/secrets/db \""
+            )
+        );
+        assert_eq!(
+            Fixture::development()
+                .not_unicode("DATABASE_MIGRATOR_URL_FILE")
+                .error(),
+            line("DATABASE_MIGRATOR_URL_FILE", MSG_UTF8)
+        );
+    }
+
+    // covers: 0002 AC-1, 0002 AC-3
+    #[test]
+    fn the_first_failing_rule_is_the_only_line_for_a_variable() {
+        // Grammar beats the environment rule in production.
+        for (name, value, message) in [
+            ("COOKIE_SECURE", "FALSE", MSG_BOOL),
+            ("DEV_SEED_ENABLED", "TRUE", MSG_BOOL),
+            ("CORS_ALLOWED_ORIGINS", "http://app.example.com/", MSG_CORS),
+            ("WEB_API_BASE_URL", "http://api.example.com/", MSG_BASE_URL),
+            (
+                "DATABASE_URL",
+                "postgres://app:pw-marker-5f3a91@db/app?ssl_mode=disable",
+                MSG_SSLMODE_ONCE,
+            ),
+            ("COOKIE_SECURE", " false", MSG_WHITESPACE),
+        ] {
+            assert_eq!(
+                Fixture::strict("production").set(name, value).error(),
+                line(name, message),
+                "{name}={value}"
+            );
+        }
+    }
+
     /// The backend section of `.env.example`: everything before the first
     /// `# --- ` line.
     fn env_example_backend_section() -> Vec<&'static str> {

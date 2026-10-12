@@ -334,6 +334,20 @@ fn secret_file_problems_name_the_variable_and_the_path() {
 // covers: 0002 AC-1
 #[cfg(unix)]
 #[test]
+fn a_closed_stderr_still_exits_78_without_panicking() {
+    // The read end is closed before the start, so every stderr write fails.
+    // eprintln! would panic (status 101); the report must ignore the failure.
+    let (reader, writer) = std::io::pipe().expect("create a pipe");
+    drop(reader);
+    let no_vars: [(&str, &str); 0] = [];
+    let output = run_to_exit(api(&no_vars).stderr(writer));
+    assert_eq!(output.status.code(), Some(78));
+    assert_eq!(output.stdout, "");
+}
+
+// covers: 0002 AC-1
+#[cfg(unix)]
+#[test]
 fn a_value_that_is_not_utf8_is_reported() {
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;

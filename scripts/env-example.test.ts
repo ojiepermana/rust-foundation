@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { childEnv, readRepoFile, repoRoot } from './test-helpers';
 
@@ -14,6 +14,60 @@ function isIgnored(path: string): boolean {
   }
   return run.status === 0;
 }
+
+describe('childEnv', () => {
+  // A developer .env loaded by bun test must never reach a child process.
+  const planted: Record<string, string> = {
+    NODE_ENV: 'test',
+    GIT_INDEX_FILE: '/tmp/index',
+    APP_ENV: 'production',
+    APP_PORT: '1',
+    DATABASE_URL: 'postgres://app:planted-secret@db/app',
+    DATABASE_MIGRATOR_URL: 'postgres://m:planted-secret@db/app',
+    DATABASE_URL_FILE: '/run/secrets/db',
+    COOKIE_SECURE: 'false',
+    CORS_ALLOWED_ORIGINS: 'http://evil.example',
+    DEV_SEED_ENABLED: 'true',
+    WEB_API_BASE_URL: 'http://evil.example',
+    SOME_TOKEN_FILE: '/run/secrets/token',
+    FOUNDATION_KEEP_ME: 'kept',
+  };
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const [name, value] of Object.entries(planted)) {
+      saved[name] = process.env[name];
+      process.env[name] = value;
+    }
+  });
+
+  afterEach(() => {
+    for (const name of Object.keys(planted)) {
+      const value = saved[name];
+      if (value === undefined) Reflect.deleteProperty(process.env, name);
+      else process.env[name] = value;
+    }
+  });
+
+  // covers: 0002 AC-7 (test isolation from a developer .env)
+  test('drops NODE_ENV, GIT_*, and every backend configuration variable', () => {
+    const env = childEnv();
+    const leaked = Object.keys(planted).filter(
+      (name) => name !== 'FOUNDATION_KEEP_ME' && name in env,
+    );
+    expect(leaked).toEqual([]);
+    expect(env.FOUNDATION_KEEP_ME).toBe('kept');
+    expect(env.PATH).toBe(process.env.PATH);
+  });
+
+  // covers: 0002 AC-7
+  test('adds extraEnv on top, so a test can pass configuration on purpose', () => {
+    const env = childEnv({ DATABASE_URL: 'postgres://canary@db.invalid/canary', NODE_ENV: 'x' });
+    expect(env.DATABASE_URL).toBe('postgres://canary@db.invalid/canary');
+    expect(env.NODE_ENV).toBe('x');
+    expect(env.DATABASE_MIGRATOR_URL).toBeUndefined();
+  });
+});
 
 describe('.env files and .env.example', () => {
   // covers: 0002 AC-5

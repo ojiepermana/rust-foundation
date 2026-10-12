@@ -52,11 +52,12 @@ pub struct Output {
     pub stderr: String,
 }
 
-/// Runs a process that must exit on its own, killing it after `LIMIT`.
+/// Runs a process that must exit on its own, killing it after `LIMIT`. A
+/// stream that the command does not pipe is reported as empty.
 pub fn run_to_exit(command: &mut Command) -> Output {
     let mut child = command.spawn().expect("spawn api");
-    let stdout = collect(child.stdout.take().expect("api stdout"));
-    let stderr = collect(child.stderr.take().expect("api stderr"));
+    let stdout = child.stdout.take().map(collect);
+    let stderr = child.stderr.take().map(collect);
     let deadline = Instant::now() + LIMIT;
     let status = loop {
         if let Some(status) = child.try_wait().expect("poll api") {
@@ -65,17 +66,19 @@ pub fn run_to_exit(command: &mut Command) -> Output {
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
-            panic!(
-                "api did not exit within {LIMIT:?}; stdout: {}",
-                text(stdout.join().unwrap_or_default())
-            );
+            panic!("api did not exit within {LIMIT:?}");
         }
         thread::sleep(Duration::from_millis(20));
     };
+    let finish = |reader: Option<JoinHandle<Vec<u8>>>| {
+        reader
+            .map(|reader| text(reader.join().expect("output reader")))
+            .unwrap_or_default()
+    };
     Output {
         status,
-        stdout: text(stdout.join().expect("stdout reader")),
-        stderr: text(stderr.join().expect("stderr reader")),
+        stdout: finish(stdout),
+        stderr: finish(stderr),
     }
 }
 
