@@ -1,0 +1,25 @@
+{
+  "name": "foundation-rust",
+  "private": true,
+  "packageManager": "bun@1.4.3",
+  "workspaces": [
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.3",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "build:web": "bun run --filter web build",
+    "test:web": "bun run --filter web test",
+    "build:api": "cargo build --locked -p api",
+    "run:api": "cargo run --locked -p api",
+    "test:scripts": "bun test scripts"
+  }
+}

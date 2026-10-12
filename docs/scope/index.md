@@ -49,7 +49,7 @@ Microservices, Kubernetes, NATS atau Kafka, Redis, billing, multi tenancy, workf
 
 | # | Fitur | Fase | Status |
 | --- | --- | --- | --- |
-| 1 | [Stack, audit, dan scaffold workspace](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
+| 1 | [Stack, audit, dan scaffold workspace](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
 | 2 | [Standar koding dan tooling](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
 | 3 | [Konfigurasi tervalidasi dan environment](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
 | 4 | [Task root dan lifecycle development](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
@@ -88,7 +88,7 @@ Microservices, Kubernetes, NATS atau Kafka, Redis, billing, multi tenancy, workf
 
 ## Bagian
 
-- [Bagian 1: Fondasi workspace dan toolchain](<001 - Workspace.md>): fitur 1 sampai 5, semua planned.
+- [Bagian 1: Fondasi workspace dan toolchain](<001 - Workspace.md>): fitur 1 done; fitur 2 sampai 5 planned.
 - [Bagian 2: Fondasi backend dan data](<002 - Backend.md>): fitur 6 sampai 10, semua planned.
 - [Bagian 3: Kontrak API dan client Angular](<003 - Kontrak API.md>): fitur 11 sampai 13, semua planned.
 - [Bagian 4: Alur awal, yaitu auth, shell, dan RBAC](<004 - Alur awal.md>): fitur 14 sampai 21, semua planned.

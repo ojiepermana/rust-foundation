@@ -1,0 +1,11 @@
+{
+  "tool": "vitest (apps/web, lewat ng test), cargo test (Rust), bun test (scripts)",
+  "gate": null,
+  "additionalTools": [],
+  "e2eTool": "playwright (dipasang saat E2E pertama)",
+  "testDir": "beside the source (apps/web), apps/<crate>/tests (Rust integration), scripts (tooling)",
+  "filePattern": "*.spec.ts (apps/web), tests/*.rs (Rust), *.test.ts (scripts)",
+  "packageManager": "bun",
+  "runCommand": "bun run test:scripts && bun run test:web && cargo test --locked --workspace",
+  "source": "docs/specs/0001-stack-audit-scaffold-workspace/index.md"
+}

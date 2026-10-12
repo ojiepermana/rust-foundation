@@ -4,15 +4,20 @@ Milestone M0 dan M1 pada brief: audit versi, keputusan arsitektur payung, scaffo
 
 ## Fondasi (M0, M1)
 
-### 1. Stack, audit, dan scaffold workspace · needs a decision
+### 1. Stack, audit, dan scaffold workspace · done
 
 Audit versi dan dukungan (Angular 22 atau lebih baru yang stabil, Node.js, TypeScript, RxJS, Bun, Rust stable, Axum, Tokio, PostgreSQL, Docker) dengan sumber resmi dan tanggal pemeriksaan, lalu putuskan tata letak monorepo Cargo Workspace dan Bun Workspace, strategi pinning dan lockfile tunggal, test runner, dan provider CI. Spec ini menjadi payung; keputusan akses data, kontrak, generator, auth, RBAC, styling, dan profil deployment dibawa oleh fitur pemiliknya. Bila Angular 22 belum stabil atau tidak kompatibel, spec menyatakan blocker dan pilihan, bukan menurunkan requirement.
 
 **Selesai ketika:** matriks audit (komponen, versi terpasang, versi usulan, status dukungan, kebutuhan kompatibilitas, sumber, status verifikasi, tindakan) tercatat tanpa angka yang belum diverifikasi; decision log dan ADR awal ada dengan status `diusulkan`, `terverifikasi`, atau `menunggu keputusan`; clean checkout memasang dependency dari lockfile yang tersimpan di repo dan membangun kerangka kosong `apps/api` serta `apps/web` secara reproducible; Bun berperan sebagai package manager dan task runner sementara Angular CLI, build, dan test berjalan pada Node.js versi yang didukung Angular.
 
-- [ ] Audit toolchain dan putuskan stack (spec): `/architect stack, audit, dan scaffold workspace`
-- [ ] Scaffold dari keputusan: `/develop stack, audit, dan scaffold workspace`
-- [ ] Pastikan kerangka terbangun dari clean checkout: `/test`
+**Spec:** [0001](../specs/0001-stack-audit-scaffold-workspace/index.md)
+
+- [x] Audit toolchain dan putuskan stack (spec): `/architect stack, audit, dan scaffold workspace`
+- [x] Scaffold dari keputusan: `/develop stack, audit, dan scaffold workspace` (code in `apps/api/`, `apps/web/`, `scripts/guard-node.mjs`, manifest root)
+- [x] Verifikasi: `/check verify stack, audit, dan scaffold workspace`
+- [x] Pastikan kerangka terbangun dari clean checkout: `/test`
+- [x] Review (model baru): `/check review stack, audit, dan scaffold workspace` (`docs/reviews/2026-10-12-main-workspace-scaffold.md`, Approve with nits)
+- [x] Dokumentasikan: `/document stack, audit, dan scaffold workspace` (`CHANGELOG.md`)
 
 ### 2. Standar koding dan tooling
 

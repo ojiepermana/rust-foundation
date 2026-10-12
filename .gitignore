@@ -1,0 +1,5 @@
+node_modules/
+target/
+apps/web/dist/
+apps/web/.angular/
+.DS_Store
