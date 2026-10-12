@@ -57,7 +57,7 @@ File diawali komentar yang menjelaskan isinya dan menunjuk `bun run db:reset` se
 Override test:
 
 - `infrastructure/compose.test.yaml`: `ports: !override ["127.0.0.1::5432"]` (Docker memilih port host efemeral).
-- `infrastructure/compose.test-tmpfs.yaml`: `volumes: !reset []` dan `tmpfs: ["/var/lib/postgresql"]`.
+- `infrastructure/compose.test-tmpfs.yaml`: `volumes: !override ["./postgres/initdb:/docker-entrypoint-initdb.d:ro"]` dan `tmpfs: ["/var/lib/postgresql"]`. Daftar volume diganti utuh dengan hanya mount init, karena `!reset []` juga membuang mount init sehingga role tidak pernah dibuat (terbukti saat build fitur 5, 2026-10-12).
 
 `pg_isready` tidak melakukan autentikasi, jadi healthcheck tidak butuh password. File penanda membuktikan script init selesai; init yang gagal di tengah tidak pernah menghasilkan container sehat.
 
