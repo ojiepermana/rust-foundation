@@ -17,7 +17,7 @@ _Langkah diturunkan dari acceptance criteria spec 0004. `/check verify` menjalan
 - [x] Matikan process group dev server dari luar → `[dev] web exited with status <n>; stopping`, status 1, backend ikut berhenti → AC-7
 - [x] `DATABASE_URL` tidak valid → `[dev] api exited with status 78 before it was ready; stopping`, status 1 → AC-7
 - [x] `POSTGRES_PORT` tertutup → pesan AC-8 muncul dan `dev` tetap siap; ada listener di `POSTGRES_PORT` → tidak ada pesan → AC-8
-- [ ] `bun test --no-env-file ./tests/integration/dev.test.ts` lulus di macOS lokal, dan job CI `checks` (Linux) serta `dev-lifecycle` (macOS, Windows) lulus di GitHub Actions → AC-9
+- [x] `bun test --no-env-file ./tests/integration/dev.test.ts` lulus di macOS lokal, dan job CI `checks` (Linux) serta `dev-lifecycle` (macOS, Windows) lulus di GitHub Actions → AC-9 ([run 38322977361](https://github.com/ojiepermana/rust-foundation/actions/runs/38322977361), commit `547279a`; run pertama 38321326853 gagal di tiga OS dan diperbaiki, lihat CHANGELOG *Fixed*)
 
 ## Acceptance-criteria coverage
 

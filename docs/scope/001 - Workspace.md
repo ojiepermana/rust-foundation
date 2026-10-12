@@ -51,7 +51,7 @@ Skema konfigurasi backend (nama variabel, tujuan, wajib atau opsional, default a
 - [x] Review (model baru): `/check review konfigurasi tervalidasi dan environment` (`docs/reviews/2026-10-12-feat-fitur-3-konfigurasi.md`, Approve with nits)
 - [x] Dokumentasikan: `/document konfigurasi tervalidasi dan environment` (`CHANGELOG.md`)
 
-### 4. Task root dan lifecycle development · in-progress
+### 4. Task root dan lifecycle development · done
 
 Satu antarmuka task di root yang mengoordinasikan Cargo Workspace dan Bun Workspace: install, dev, build, lint, test, E2E, generate dan check kontrak, migrate dan status, seed dev, lifecycle Compose, serta build dan smoke kedua profil. Lifecycle dev menjalankan frontend dan backend bersama proxy, hot reload, log terpisah, shutdown child process, deteksi konflik port, dan dukungan lintas OS tanpa layanan production.
 
@@ -66,7 +66,7 @@ Satu antarmuka task di root yang mengoordinasikan Cargo Workspace dan Bun Worksp
   - [x] Watcher polling, reload, dan log terpisah (AC-5, AC-6)
   - [x] Katalog task, script root, dan tata letak test (AC-1, AC-2)
   - [x] Portabilitas test, test lifecycle, dan CI tiga OS (AC-9)
-- [ ] Verifikasi: `/check verify task root dan lifecycle development`
+- [x] Verifikasi: `/check verify task root dan lifecycle development` (14 langkah di `verify.md` lulus; lifecycle lokal di macOS dan [run CI GitHub 38322977361](https://github.com/ojiepermana/rust-foundation/actions/runs/38322977361) lulus di Linux, macOS, dan Windows)
 - [x] Test: `/test task root dan lifecycle development` (`tests/integration/dev.test.ts`, `scripts/task-catalog.test.ts`, `scripts/dev-support.test.ts`, `tests/integration/clean-checkout.test.ts`)
 - [x] Review (model baru): `/check review task root dan lifecycle development` (`docs/reviews/2026-10-13-main-task-root-dev.md`, Changes requested; major dan minor ditindaklanjuti)
 - [x] Dokumentasikan: `/document task root dan lifecycle development` (`CHANGELOG.md`)

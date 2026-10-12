@@ -18,7 +18,7 @@ Binary Axum yang menjadi composition root backend. Router masih kosong; konfigur
 
 ```bash
 bun run build:api                 # cargo build --locked -p api
-bun run run:api                   # cargo run --locked -p api; butuh env (spec 0002), keluar 78 tanpa env
+bun run run:api                   # muat .env root lewat scripts/env-file.ts, lalu cargo run --locked -p api; keluar 78 tanpa env (spec 0002, 0004)
 cargo test --locked -p api        # butuh port 3000 bebas
 ```
 
@@ -38,5 +38,6 @@ cargo test --locked -p api        # butuh port 3000 bebas
 
 - [0001 Stack, audit, dan scaffold workspace](../../docs/specs/0001-stack-audit-scaffold-workspace/index.md)
 - [0002 Konfigurasi tervalidasi dan environment](../../docs/specs/0002-konfigurasi-tervalidasi-environment/index.md)
+- [0004 Task root dan lifecycle development](../../docs/specs/0004-task-root-lifecycle-development/index.md)
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._
