@@ -88,4 +88,4 @@ Compose untuk development dengan PostgreSQL dan service minimum, volume persiste
 - [x] Verifikasi: `/check verify infrastruktur PostgreSQL development` (dev project `foundation-rust` lewat `db:up`, `db:status`, `db:down`; reset interaktif lewat pty pada project sementara)
 - [x] Test: `/test infrastruktur PostgreSQL development` (`scripts/db.test.ts` 110 test tanpa daemon, `tests/integration/postgres.test.ts` 40 test dengan Docker)
 - [x] Review (model baru): `/check review infrastruktur PostgreSQL development` (`docs/reviews/2026-10-12-feat-fitur-5-postgresql.md`, Approve with nits)
-- [ ] Dokumentasikan: `/document infrastruktur PostgreSQL development`
+- [x] Dokumentasikan: `/document infrastruktur PostgreSQL development` (`CHANGELOG.md`)
