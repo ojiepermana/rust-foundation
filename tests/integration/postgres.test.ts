@@ -92,8 +92,16 @@ function dbEnv(database: TestPostgres, extra: Record<string, string> = {}) {
   };
 }
 
+// Tests may only ever drive a temporary project, never foundation-rust (AC-6).
+function requireTestProject(project: string | undefined): void {
+  if (!/^foundation-test-[0-9a-f]{16}$/.test(project ?? '')) {
+    throw new Error(`tests may only use a foundation-test-* project, got "${project ?? ''}"`);
+  }
+}
+
 // stdin is either text piped to the command or closed.
 function runDb(args: string[], env: Record<string, string>, stdin: string | null = null) {
+  requireTestProject(env.COMPOSE_PROJECT_NAME);
   return spawnSync(process.execPath, ['--no-env-file', 'scripts/db.ts', ...args], {
     cwd: repoRoot,
     env,
@@ -265,6 +273,47 @@ describe('temporary project on tmpfs', () => {
       // An empty ACL would mean the default privileges, which include PUBLIC.
       expect(entries).toBeGreaterThan(0);
       expect(publicEntries).toBe(0);
+    });
+
+    // covers: AC-5
+    test('PUBLIC has no privilege on schema public', () => {
+      const result = started(database).psql(
+        'admin',
+        [
+          'select count(*), count(*) filter (where a.grantee = 0)',
+          "from pg_namespace n, aclexplode(n.nspacl) a where n.nspname = 'public'",
+        ].join(' '),
+      );
+      expect(result.status).toBe(0);
+      const [entries, publicEntries] = result.stdout.trim().split('|').map(Number);
+      expect(entries).toBeGreaterThan(0);
+      expect(publicEntries).toBe(0);
+    });
+
+    // covers: AC-5
+    test('the app role cannot connect to the postgres database', () => {
+      const db = started(database);
+      const result = db.compose([
+        'exec',
+        '-T',
+        '-e',
+        `PGPASSWORD=${db.passwords.runtime}`,
+        'postgres',
+        'psql',
+        '-X',
+        '-q',
+        '-At',
+        '-h',
+        '127.0.0.1',
+        '-U',
+        'foundation_app',
+        '-d',
+        'postgres',
+        '-c',
+        'select 1',
+      ]);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('permission denied for database "postgres"');
     });
 
     // covers: AC-5
@@ -579,6 +628,7 @@ describe('harness isolation and cleanup', () => {
 
 describe('db.ts on a project that is not running', () => {
   function composeDown(project: string, env: Record<string, string>) {
+    requireTestProject(project);
     spawnSync(
       'docker',
       [

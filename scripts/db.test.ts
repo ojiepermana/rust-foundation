@@ -3,13 +3,16 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import {
+  closeSync,
   cpSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -54,6 +57,26 @@ POSTGRES_RUNTIME_PASSWORD=
 # Matching backend URLs:
 # DATABASE_URL=postgres://foundation_app:<POSTGRES_RUNTIME_PASSWORD>@127.0.0.1:15432/foundation?sslmode=disable
 # DATABASE_MIGRATOR_URL=postgres://foundation_migrator:<POSTGRES_MIGRATOR_PASSWORD>@127.0.0.1:15432/foundation?sslmode=disable
+`;
+
+// The SQL block of spec 0003 ("Script init"), in order. The two SET lines keep the password
+// literals that psql interpolates out of the server log, even when a statement fails.
+const INIT_SQL = `SET log_min_error_statement = 'panic';
+SET log_statement = 'none';
+\\getenv migrator_password FOUNDATION_MIGRATOR_PASSWORD
+\\getenv runtime_password FOUNDATION_RUNTIME_PASSWORD
+CREATE ROLE foundation_migrator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'migrator_password';
+CREATE ROLE foundation_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'runtime_password';
+REVOKE ALL ON DATABASE foundation FROM PUBLIC;
+REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+GRANT CONNECT, CREATE, TEMPORARY ON DATABASE foundation TO foundation_migrator;
+GRANT CONNECT ON DATABASE foundation TO foundation_app;
+ALTER SCHEMA public OWNER TO foundation_migrator;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO foundation_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE foundation_migrator GRANT USAGE ON SCHEMAS TO foundation_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE foundation_migrator GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO foundation_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE foundation_migrator GRANT USAGE, SELECT ON SEQUENCES TO foundation_app;
 `;
 
 interface ComposeConfig {
@@ -485,6 +508,17 @@ describe('init script', () => {
   });
 
   // covers: AC-5
+  test('runs exactly the SQL of spec 0003, logging switched off before any password', () => {
+    const script = readRepoFile(INIT_SCRIPT);
+    const start = script.indexOf("<<'SQL'\n") + "<<'SQL'\n".length;
+    const body = script.slice(start, script.indexOf('\nSQL\n', start) + 1);
+    expect(body).toBe(INIT_SQL);
+    expect(
+      script.indexOf('psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname foundation'),
+    ).toBeGreaterThan(0);
+  });
+
+  // covers: AC-5
   test.each([
     ['FOUNDATION_MIGRATOR_PASSWORD', { FOUNDATION_MIGRATOR_PASSWORD: 'tiny9z' }],
     ['FOUNDATION_RUNTIME_PASSWORD', { FOUNDATION_MIGRATOR_PASSWORD: MIGRATOR }],
@@ -906,5 +940,93 @@ describe('db.ts against a fake docker command', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toStartWith('database: unexpected argument "--force"');
     expect(calls('ARGS')).toEqual([]);
+  });
+
+  describe('interactive reset in a terminal', () => {
+    const PROMPT = `DESTRUCTIVE: this deletes all data in volume ${FAKE_VOLUME}. Type the volume name to continue: `;
+    const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+    // `script` gives db.ts a real terminal (macOS and util-linux syntax differ). macOS `script`
+    // refuses a socket or FIFO on its standard streams, so plain pipes from `cat` surround it.
+    async function runInTerminal(input: string) {
+      const fifo = join(root, 'stdin.fifo');
+      expect(spawnSync('mkfifo', [fifo]).status).toBe(0);
+      const command = [process.execPath, '--no-env-file', join(root, 'scripts/db.ts'), 'reset']
+        .map(quote)
+        .join(' ');
+      const terminal =
+        process.platform === 'darwin'
+          ? `script -q /dev/null ${command}`
+          : `script -q -e -c ${quote(command)} /dev/null`;
+      const child = Bun.spawn(
+        ['bash', '-c', `set -o pipefail; cat "$0" | ${terminal} 2>&1 | cat`, fifo],
+        {
+          cwd: tmpdir(),
+          env: {
+            PATH: `${join(root, 'bin')}:/usr/bin:/bin`,
+            FAKE_DOCKER_LOG: log,
+            FAKE_DOCKER_CONFIG: JSON.stringify({
+              volumes: { postgres_data: { name: FAKE_VOLUME } },
+            }),
+            ...VALID,
+          },
+          stdin: 'ignore',
+          stdout: 'pipe',
+          stderr: 'pipe',
+        },
+      );
+      // Read and write end, so opening never blocks while bash starts.
+      const writer = openSync(fifo, 'r+');
+      const reader = child.stdout.getReader();
+      const decoder = new TextDecoder();
+      let output = '';
+      const readMore = async () => {
+        const chunk = await reader.read();
+        if (!chunk.done) output += decoder.decode(chunk.value);
+        return !chunk.done;
+      };
+      while (!output.includes(PROMPT) && (await readMore()));
+      writeSync(writer, input);
+      await Bun.sleep(500);
+      closeSync(writer);
+      while (await readMore());
+      return { status: await child.exited, output: output.replaceAll('\r', '') };
+    }
+
+    // covers: AC-4
+    test.skipIf(Bun.which('script') === null).each([
+      ['a wrong answer', 'foundation-rust_postgres_data\r'],
+      ['Ctrl+C', '\x03'],
+      ['Ctrl+D (end of input)', '\x04'],
+    ])(
+      'cancels on %s without removing anything',
+      async (_label, input) => {
+        const result = await runInTerminal(input);
+        expect(result.output).toContain(PROMPT);
+        expect(result.output).toContain(
+          `\ndatabase: reset cancelled; confirm with --confirm=${FAKE_VOLUME}\n`,
+        );
+        expect(result.status).toBe(1);
+        expect(calls('ARGS').filter((line) => line.includes(' down'))).toEqual([]);
+      },
+      30_000,
+    );
+
+    // covers: AC-4
+    test.skipIf(Bun.which('script') === null)(
+      'resets after the exact volume name is typed',
+      async () => {
+        const result = await runInTerminal(`${FAKE_VOLUME}\r`);
+        expect(result.output).toContain(PROMPT);
+        expect(result.status).toBe(0);
+        expect(calls('ARGS')).toEqual([
+          'ARGS info --format {{.ServerVersion}}',
+          `ARGS ${COMPOSE} config --format json`,
+          `ARGS ${COMPOSE} down --volumes`,
+          UP,
+        ]);
+      },
+      30_000,
+    );
   });
 });

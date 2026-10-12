@@ -52,6 +52,8 @@ export interface ComposeOptions {
 
 // Checks the infrastructure variables of `up` and `reset`. Each error is one
 // `<NAME>: <message>` line, in the order of the variable table of spec 0003.
+// The resolved `port` is for callers such as the root tasks of feature 4; db.ts itself lets
+// Compose read POSTGRES_PORT and only needs `ok`.
 export function validateInfraEnv(env: InfraEnv): InfraEnvResult {
   const errors: string[] = [];
   let port = DEFAULT_POSTGRES_PORT;
@@ -174,6 +176,8 @@ function promptLine(question: string): Promise<string | undefined> {
     process.on('SIGINT', onInterrupt);
     prompt.on('SIGINT', onInterrupt);
     prompt.on('close', () => {
+      // End of input (Ctrl+D) closes the prompt before any answer; end the prompt line first.
+      if (!settled) process.stderr.write('\n');
       finish(undefined);
     });
     prompt.question(question, (answer) => {

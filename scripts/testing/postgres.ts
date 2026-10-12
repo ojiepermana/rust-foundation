@@ -225,6 +225,8 @@ export async function startPostgres(options: StartPostgresOptions = {}): Promise
   const files = composeFiles(options.persistent === true);
   const composeArgs = (args: string[]) => ['compose', ...files, '--project-name', project, ...args];
   const compose = (args: string[]) => run(composeArgs(args), env);
+  // Idempotent once `down` succeeds; a failed `down` stays registered so a later call
+  // (afterAll or the signal handler) tries again.
   let stopped = false;
   const stop = () => {
     if (!project.startsWith(TEST_PROJECT_PREFIX)) {
@@ -233,11 +235,21 @@ export async function startPostgres(options: StartPostgresOptions = {}): Promise
       );
     }
     if (stopped) return;
-    stopped = true;
-    activeStops.delete(stop);
     const result = compose(['down', '--volumes', '--remove-orphans']);
     if (result.status !== 0) {
       throw new Error(`docker compose down failed for ${project}: ${result.stderr.trim()}`);
+    }
+    stopped = true;
+    activeStops.delete(stop);
+  };
+  // Cleans up after a failed start and keeps the start error as the main message.
+  const failStart = (message: string): Error => {
+    try {
+      stop();
+      return new Error(message);
+    } catch (error) {
+      const cleanup = error instanceof Error ? error.message : String(error);
+      return new Error(`${message}\n(cleanup also failed: ${cleanup})`);
     }
   };
   activeStops.add(stop);
@@ -249,8 +261,7 @@ export async function startPostgres(options: StartPostgresOptions = {}): Promise
   );
   if (up.status !== 0) {
     const logs = compose(['logs', '--no-color', '--tail', '50', 'postgres']).stdout;
-    stop();
-    throw new Error(
+    throw failStart(
       `postgres in ${project} did not become healthy (status ${String(up.status)}):\n${up.stderr}\n${logs}`,
     );
   }
@@ -258,8 +269,7 @@ export async function startPostgres(options: StartPostgresOptions = {}): Promise
   try {
     port = parsePort(compose(['port', 'postgres', '5432']).stdout);
   } catch (error) {
-    stop();
-    throw error;
+    throw failStart(error instanceof Error ? error.message : String(error));
   }
 
   const rolePassword = {
