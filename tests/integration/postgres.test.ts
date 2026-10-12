@@ -17,6 +17,9 @@ const HOOK_TIMEOUT_MS = 180_000;
 const TEST_TIMEOUT_MS = 180_000;
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const signalFixture = fileURLToPath(new URL('./fixtures/postgres-signal.ts', import.meta.url));
+const failingSuite = fileURLToPath(
+  new URL('./fixtures/postgres-failing-suite.ts', import.meta.url),
+);
 
 interface PsEntry {
   Health: string;
@@ -135,6 +138,20 @@ describe('temporary project on tmpfs', () => {
   // covers: AC-1
   test('accepts TCP connections on the published host port', async () => {
     expect(await canConnect(started(database).port)).toBe(true);
+  });
+
+  // covers: AC-6
+  test('reports the published port and one URL per role on it', () => {
+    const db = started(database);
+    expect(psEntries(db)[0]?.Publishers?.map((publisher) => publisher.PublishedPort)).toEqual([
+      db.port,
+    ]);
+    const base = `@127.0.0.1:${String(db.port)}/foundation?sslmode=disable`;
+    expect(db.urls).toEqual({
+      admin: `postgres://foundation_admin:${db.passwords.admin}${base}`,
+      migrator: `postgres://foundation_migrator:${db.passwords.migrator}${base}`,
+      app: `postgres://foundation_app:${db.passwords.runtime}${base}`,
+    });
   });
 
   // covers: AC-1
@@ -466,9 +483,12 @@ describe('harness isolation and cleanup', () => {
   );
 
   // covers: AC-6
-  test(
-    'a process that receives SIGTERM after starting a project leaves nothing behind',
-    async () => {
+  test.each([
+    ['SIGTERM', 143],
+    ['SIGINT', 130],
+  ] as const)(
+    'a process that receives %s after starting a project exits %d and leaves nothing behind',
+    async (signal, exitCode) => {
       const child = Bun.spawn([process.execPath, '--no-env-file', signalFixture], {
         cwd: repoRoot,
         stdout: 'pipe',
@@ -485,8 +505,60 @@ describe('harness isolation and cleanup', () => {
       const project = /ready (\S+)\n/.exec(output)?.[1] ?? '';
       expect(project).toMatch(/^foundation-test-[0-9a-f]{16}$/);
       expect(projectResources(project).length).toBeGreaterThan(0);
-      child.kill('SIGTERM');
-      expect(await child.exited).toBe(143);
+      child.kill(signal);
+      expect(await child.exited).toBe(exitCode);
+      expect(projectResources(project)).toEqual([]);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  // covers: AC-6
+  test(
+    'a suite whose test fails still removes its project in afterAll',
+    () => {
+      const result = spawnSync(process.execPath, ['test', '--no-env-file', failingSuite], {
+        cwd: repoRoot,
+        env: createTestEnv().env,
+        encoding: 'utf8',
+      });
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.status).toBe(1);
+      expect(output).toContain('1 fail');
+      const project = /started (foundation-test-[0-9a-f]{16})/.exec(output)?.[1] ?? '';
+      expect(project).not.toBe('');
+      expect(projectResources(project)).toEqual([]);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  // covers: AC-1, AC-6
+  test(
+    'a failed init script never reports healthy and does not print the password',
+    () => {
+      const { project, env } = createTestEnv();
+      env.POSTGRES_MIGRATOR_PASSWORD = 'short-value-x';
+      const compose = (args: string[]) =>
+        spawnSync(
+          'docker',
+          [
+            'compose',
+            ...['-f', 'infrastructure/compose.yaml', '-f', 'infrastructure/compose.test.yaml'],
+            ...['-f', 'infrastructure/compose.test-tmpfs.yaml', '--project-name', project],
+            ...args,
+          ],
+          { cwd: repoRoot, env, encoding: 'utf8' },
+        );
+      try {
+        const up = compose(['up', '-d', '--wait', '--wait-timeout', '60']);
+        expect(up.status).not.toBe(0);
+        const health = compose(['ps', '-a', '--format', '{{.Health}}', 'postgres']).stdout.trim();
+        expect(health).not.toBe('healthy');
+        const logs = compose(['logs', '--no-color', 'postgres']).stdout;
+        expect(logs).toContain('FOUNDATION_MIGRATOR_PASSWORD must be 16 to 128 characters');
+        expect(logs).not.toContain('short-value-x');
+      } finally {
+        compose(['down', '--volumes', '--remove-orphans']);
+      }
       expect(projectResources(project)).toEqual([]);
     },
     TEST_TIMEOUT_MS,
@@ -503,4 +575,63 @@ describe('harness isolation and cleanup', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Docker');
   });
+});
+
+describe('db.ts on a project that is not running', () => {
+  function composeDown(project: string, env: Record<string, string>) {
+    spawnSync(
+      'docker',
+      [
+        'compose',
+        '-f',
+        'infrastructure/compose.yaml',
+        '--project-name',
+        project,
+        'down',
+        '--volumes',
+        '--remove-orphans',
+      ],
+      { cwd: repoRoot, env, encoding: 'utf8' },
+    );
+  }
+
+  // covers: AC-4
+  test('reset still asks for confirmation when the volume does not exist yet', () => {
+    const { project, env } = createTestEnv();
+    const result = runDb(['reset'], { ...env, COMPOSE_PROJECT_NAME: project });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `database: reset cancelled; confirm with --confirm=${project}_postgres_data`,
+    );
+    expect(projectResources(project)).toEqual([]);
+  });
+
+  // covers: AC-1
+  test(
+    'up reports a host port that is already in use and exits non zero',
+    async () => {
+      const { project, env } = createTestEnv();
+      const server = createServer();
+      await new Promise<void>((resolve) => {
+        server.listen(0, '127.0.0.1', resolve);
+      });
+      const address = server.address();
+      const port = typeof address === 'object' && address !== null ? address.port : 0;
+      try {
+        const result = runDb(['up'], {
+          ...env,
+          COMPOSE_PROJECT_NAME: project,
+          POSTGRES_PORT: String(port),
+        });
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain(String(port));
+        expect(result.stderr).toContain('database: postgres did not become healthy');
+      } finally {
+        server.close();
+        composeDown(project, env);
+      }
+      expect(projectResources(project)).toEqual([]);
+    },
+    TEST_TIMEOUT_MS,
+  );
 });

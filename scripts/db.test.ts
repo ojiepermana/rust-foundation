@@ -1,8 +1,16 @@
 // Fast tests of the development database tooling (spec 0003). They need the docker CLI with
 // the Compose plugin but no daemon: DOCKER_HOST points at a socket that does not exist.
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import {
@@ -335,6 +343,12 @@ describe('Compose file (docker compose config, no daemon)', () => {
   });
 
   // covers: AC-1
+  test('an empty POSTGRES_PORT falls back to the default host port', () => {
+    const ports = postgresService(parsedConfig([BASE], { POSTGRES_PORT: '' }).config).ports;
+    expect(ports?.map((port) => port.published)).toEqual([String(DEFAULT_POSTGRES_PORT)]);
+  });
+
+  // covers: AC-1
   test('POSTGRES_PORT changes the host port, still on 127.0.0.1', () => {
     const ports = postgresService(parsedConfig([BASE], { POSTGRES_PORT: '25432' }).config).ports;
     expect(ports?.map((port) => [port.host_ip, port.published, port.target])).toEqual([
@@ -659,5 +673,238 @@ describe('loadEnvFile', () => {
       result: { loaded: true, path: expectedPath },
       value: 'default-file',
     });
+  });
+
+  // covers: AC-1
+  test('reports a file it cannot read with the path, not only a missing one', () => {
+    const folder = tempFolder();
+    expect(() => loadEnvFile({ path: folder })).toThrow(`cannot read env file ${folder}:`);
+  });
+});
+
+// A stand in for the docker command at the process boundary. It records every call and the
+// environment Compose would see, and answers from FAKE_DOCKER_* variables. Values are dummies.
+const FAKE_DOCKER = `#!/bin/bash
+printf 'ARGS %s\\n' "$*" >> "$FAKE_DOCKER_LOG"
+if [ "$1" = info ]; then exit "\${FAKE_DOCKER_INFO_STATUS:-0}"; fi
+printf 'ENV admin=%s migrator=%s runtime=%s port=%s cwd=%s\\n' \\
+  "\${POSTGRES_ADMIN_PASSWORD-<unset>}" "\${POSTGRES_MIGRATOR_PASSWORD-<unset>}" \\
+  "\${POSTGRES_RUNTIME_PASSWORD-<unset>}" "\${POSTGRES_PORT-<unset>}" "$(pwd -P)" >> "$FAKE_DOCKER_LOG"
+case " $* " in
+  *" config "*) printf '%s' "$FAKE_DOCKER_CONFIG"; exit "\${FAKE_DOCKER_CONFIG_STATUS:-0}" ;;
+  *" down "*) exit "\${FAKE_DOCKER_DOWN_STATUS:-0}" ;;
+  *" up "*)
+    if [ -n "\${FAKE_DOCKER_UP_SIGNAL-}" ]; then kill -s "$FAKE_DOCKER_UP_SIGNAL" $$; fi
+    exit "\${FAKE_DOCKER_UP_STATUS:-0}" ;;
+  *" ps "*) exit "\${FAKE_DOCKER_PS_STATUS:-0}" ;;
+esac
+exit 99
+`;
+
+describe('db.ts against a fake docker command', () => {
+  const FAKE_VOLUME = 'fake-project_postgres_data';
+  const COMPOSE = 'compose -f infrastructure/compose.yaml';
+  const UP = `ARGS ${COMPOSE} up -d --wait --wait-timeout 120 postgres`;
+  const HINT =
+    'database: postgres did not become healthy; if this was its first start, run "bun run db:reset"';
+  let root = '';
+  let log = '';
+
+  // A copy of the three scripts, so the default .env is <root>/.env and never the developer's.
+  beforeEach(() => {
+    root = realpathSync(mkdtempSync(join(tmpdir(), 'foundation-fake-docker-')));
+    mkdirSync(join(root, 'scripts'));
+    mkdirSync(join(root, 'bin'));
+    for (const file of ['db.ts', 'env-file.ts', 'postgres-env.ts']) {
+      cpSync(join(repoRoot, 'scripts', file), join(root, 'scripts', file));
+    }
+    writeFileSync(join(root, 'bin/docker'), FAKE_DOCKER, { mode: 0o755 });
+    log = join(root, 'calls.log');
+    writeFileSync(log, '');
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  function runFake(args: string[], extra: Record<string, string | undefined> = {}) {
+    const env: Record<string, string> = {
+      PATH: `${join(root, 'bin')}:/usr/bin:/bin`,
+      FAKE_DOCKER_LOG: log,
+      FAKE_DOCKER_CONFIG: JSON.stringify({ volumes: { postgres_data: { name: FAKE_VOLUME } } }),
+      ...VALID,
+    };
+    for (const [name, value] of Object.entries(extra)) {
+      if (value === undefined) Reflect.deleteProperty(env, name);
+      else env[name] = value;
+    }
+    return spawnSync(process.execPath, ['--no-env-file', join(root, 'scripts/db.ts'), ...args], {
+      cwd: tmpdir(),
+      env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  }
+
+  function calls(prefix: 'ARGS' | 'ENV'): string[] {
+    return readFileSync(log, 'utf8')
+      .split('\n')
+      .filter((line) => line.startsWith(`${prefix} `));
+  }
+
+  // covers: AC-1
+  test('status runs Compose from the repo root and passes its exit status through', () => {
+    const result = runFake(['status'], { FAKE_DOCKER_PS_STATUS: '3' });
+    expect(result.status).toBe(3);
+    expect(calls('ARGS')).toEqual([
+      'ARGS info --format {{.ServerVersion}}',
+      `ARGS ${COMPOSE} ps postgres`,
+    ]);
+    expect(calls('ENV')[0]).toEndWith(`cwd=${root}`);
+  });
+
+  // covers: AC-1
+  test('up waits for health and prints no hint when Compose succeeds', () => {
+    const result = runFake(['up']);
+    expect(result.status).toBe(0);
+    expect(calls('ARGS')).toEqual(['ARGS info --format {{.ServerVersion}}', UP]);
+    expect(result.stderr).not.toContain(HINT);
+  });
+
+  // covers: AC-1
+  test('up prints the reset hint and passes the failing Compose status through', () => {
+    const result = runFake(['up'], { FAKE_DOCKER_UP_STATUS: '4' });
+    expect(result.status).toBe(4);
+    expect(result.stderr).toContain(HINT);
+  });
+
+  // covers: AC-1
+  test.each([
+    ['SIGTERM', 143],
+    ['SIGKILL', 137],
+  ])('a Compose child killed by %s exits with 128 + its number', (signal, status) => {
+    const result = runFake(['up'], { FAKE_DOCKER_UP_SIGNAL: signal.slice(3) });
+    expect(result.status).toBe(status);
+  });
+
+  // covers: AC-1
+  test('a stopped Docker daemon stops the command before any Compose call', () => {
+    const result = runFake(['status'], { FAKE_DOCKER_INFO_STATUS: '1' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe('database: Docker is not running; start Docker and try again\n');
+    expect(calls('ARGS')).toEqual(['ARGS info --format {{.ServerVersion}}']);
+  });
+
+  // covers: AC-1
+  test('the .env beside scripts/ fills what the shell leaves empty; shell values win', () => {
+    writeFileSync(
+      join(root, '.env'),
+      [
+        'POSTGRES_PORT=25432',
+        'POSTGRES_ADMIN_PASSWORD=file-admin-password-1',
+        'POSTGRES_MIGRATOR_PASSWORD=file-migrator-password-2',
+        'POSTGRES_RUNTIME_PASSWORD=file-runtime-password-3',
+      ].join('\n'),
+    );
+    const result = runFake(['up'], {
+      POSTGRES_ADMIN_PASSWORD: '',
+      POSTGRES_MIGRATOR_PASSWORD: MIGRATOR,
+      POSTGRES_RUNTIME_PASSWORD: undefined,
+    });
+    expect(result.status).toBe(0);
+    expect(calls('ENV')).toEqual([
+      `ENV admin=file-admin-password-1 migrator=${MIGRATOR} runtime=file-runtime-password-3 port=25432 cwd=${root}`,
+    ]);
+  });
+
+  // covers: AC-3
+  test.each(['down', 'status'])(
+    '%s runs without passwords, using the placeholder only in the Compose environment',
+    (subcommand) => {
+      const result = runFake([subcommand], {
+        POSTGRES_ADMIN_PASSWORD: '',
+        POSTGRES_MIGRATOR_PASSWORD: undefined,
+        POSTGRES_RUNTIME_PASSWORD: RUNTIME,
+      });
+      expect(result.status).toBe(0);
+      expect(calls('ENV')).toEqual([
+        `ENV admin=${PASSWORD_PLACEHOLDER} migrator=${PASSWORD_PLACEHOLDER} runtime=${RUNTIME} port=<unset> cwd=${root}`,
+      ]);
+      expect(calls('ARGS')[1]).toBe(
+        subcommand === 'down' ? `ARGS ${COMPOSE} down` : `ARGS ${COMPOSE} ps postgres`,
+      );
+    },
+  );
+
+  // covers: AC-3
+  test('down never asks Compose to remove volumes', () => {
+    runFake(['down']);
+    expect(calls('ARGS').filter((line) => line.includes('--volumes'))).toEqual([]);
+  });
+
+  // covers: AC-4
+  test('reset reads the volume name from Compose, then removes volumes, then starts again', () => {
+    const result = runFake(['reset', `--confirm=${FAKE_VOLUME}`]);
+    expect(result.status).toBe(0);
+    expect(calls('ARGS')).toEqual([
+      'ARGS info --format {{.ServerVersion}}',
+      `ARGS ${COMPOSE} config --format json`,
+      `ARGS ${COMPOSE} down --volumes`,
+      UP,
+    ]);
+  });
+
+  // covers: AC-4
+  test('reset compares against the Compose volume name, not the default project name', () => {
+    const result = runFake(['reset', '--confirm=foundation-rust_postgres_data']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(
+      `database: reset cancelled; confirm with --confirm=${FAKE_VOLUME}\n`,
+    );
+    expect(calls('ARGS').filter((line) => line.includes(' down'))).toEqual([]);
+  });
+
+  // covers: AC-4
+  test.each([
+    ['an extra argument', [`--confirm=${FAKE_VOLUME}`, '--yes']],
+    ['an empty value', ['--confirm=']],
+    ['a short flag', ['-y']],
+  ])('reset cancels with %s', (_label, args) => {
+    const result = runFake(['reset', ...args]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('database: reset cancelled');
+    expect(calls('ARGS').filter((line) => line.includes(' down'))).toEqual([]);
+  });
+
+  // covers: AC-4
+  test('reset never starts again when removing the volumes fails', () => {
+    const result = runFake(['reset', `--confirm=${FAKE_VOLUME}`], { FAKE_DOCKER_DOWN_STATUS: '5' });
+    expect(result.status).toBe(5);
+    expect(calls('ARGS')).not.toContain(UP);
+  });
+
+  // covers: AC-4
+  test('reset passes a failing compose config through without removing anything', () => {
+    const result = runFake(['reset', `--confirm=${FAKE_VOLUME}`], {
+      FAKE_DOCKER_CONFIG_STATUS: '6',
+    });
+    expect(result.status).toBe(6);
+    expect(calls('ARGS').filter((line) => line.includes(' down'))).toEqual([]);
+  });
+
+  // covers: AC-4
+  test('reset stops with status 1 when Compose reports no data volume', () => {
+    const result = runFake(['reset', `--confirm=${FAKE_VOLUME}`], {
+      FAKE_DOCKER_CONFIG: JSON.stringify({ volumes: {} }),
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe('database: cannot read the volume name from Compose\n');
+  });
+
+  test('up rejects an unexpected argument without calling docker', () => {
+    const result = runFake(['up', '--force']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toStartWith('database: unexpected argument "--force"');
+    expect(calls('ARGS')).toEqual([]);
   });
 });

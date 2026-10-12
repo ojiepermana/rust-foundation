@@ -86,6 +86,6 @@ Compose untuk development dengan PostgreSQL dan service minimum, volume persiste
   - [x] Harness test sementara dan pembersihan (AC-6)
   - [x] `.env.example` bagian infrastruktur dan tsconfig test (AC-7)
 - [x] Verifikasi: `/check verify infrastruktur PostgreSQL development` (dev project `foundation-rust` lewat `db:up`, `db:status`, `db:down`; reset interaktif lewat pty pada project sementara)
-- [ ] Test: `/test infrastruktur PostgreSQL development`
+- [x] Test: `/test infrastruktur PostgreSQL development` (`scripts/db.test.ts` 105 test tanpa daemon, `tests/integration/postgres.test.ts` 38 test dengan Docker)
 - [ ] Review (model baru): `/check review infrastruktur PostgreSQL development`
 - [ ] Dokumentasikan: `/document infrastruktur PostgreSQL development`
