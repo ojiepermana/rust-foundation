@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
@@ -13,10 +13,16 @@ interface WorkflowStep {
   with?: Record<string, string>;
 }
 
+interface WorkflowJob {
+  'runs-on': string;
+  strategy?: { 'fail-fast'?: boolean; matrix?: { os?: string[] } };
+  steps: WorkflowStep[];
+}
+
 interface Workflow {
   on: { pull_request?: unknown; push?: { branches?: string[] } };
   permissions: Record<string, string>;
-  jobs: Record<string, { steps: WorkflowStep[] }>;
+  jobs: Record<string, WorkflowJob | undefined>;
 }
 
 const rootScripts = readPackageManifest('package.json').scripts ?? {};
@@ -86,15 +92,14 @@ describe('generated roots stay out of lint and format', () => {
 
 describe('pre-commit hook', () => {
   test('the committed hook is executable and runs the same check as CI', () => {
-    const hook = join(repoRoot, '.githooks/pre-commit');
-    expect(() => {
-      accessSync(hook, constants.X_OK);
-    }).not.toThrow();
+    // The git mode, not the file system bit, so the check also holds on Windows checkouts.
+    const entry = git(repoRoot, ['ls-files', '-s', '.githooks/pre-commit']).stdout;
+    expect(entry.startsWith('100755 ')).toBe(true);
     expect(readRepoFile('.githooks/pre-commit')).toContain('exec bun run check');
   });
 
   test('install points git at .githooks through the prepare script', () => {
-    expect(rootScripts.prepare).toBe('bun scripts/install-hooks.ts');
+    expect(rootScripts.prepare).toBe('bun --no-env-file scripts/install-hooks.ts');
     const repo = mkdtempSync(join(tmpdir(), 'foundation-hooks-'));
     try {
       expect(git(repo, ['init', '--quiet']).status).toBe(0);
@@ -124,14 +129,23 @@ describe('pre-commit hook', () => {
 
 describe('basic CI workflow', () => {
   const workflow = Bun.YAML.parse(readRepoFile('.github/workflows/ci.yml')) as Workflow;
-  const steps = Object.values(workflow.jobs).flatMap((job) => job.steps);
-  const actions = steps.flatMap((step) => (step.uses ? [step.uses] : []));
-  const commands = steps.flatMap((step) =>
-    (step.run ?? '')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean),
-  );
+  const jobs = Object.entries(workflow.jobs).flatMap(([name, job]) => (job ? [{ name, job }] : []));
+  const PINNED_ACTIONS = [
+    'actions/checkout@v7',
+    'actions/setup-node@v7',
+    'oven-sh/setup-bun@v2',
+    'actions-rust-lang/setup-rust-toolchain@v2',
+    'actions/cache@v6',
+  ];
+
+  function commandsOf(job: WorkflowJob): string[] {
+    return job.steps.flatMap((step) =>
+      (step.run ?? '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+    );
+  }
 
   test('runs on pull requests and pushes to main with read only permissions', () => {
     expect(workflow.on.push?.branches).toEqual(['main']);
@@ -139,30 +153,52 @@ describe('basic CI workflow', () => {
     expect(workflow.permissions).toEqual({ contents: 'read' });
   });
 
-  test('uses exactly the actions pinned in spec 0001', () => {
-    expect(actions).toEqual([
-      'actions/checkout@v7',
-      'actions/setup-node@v7',
-      'oven-sh/setup-bun@v2',
-      'actions-rust-lang/setup-rust-toolchain@v2',
-      'actions/cache@v6',
-    ]);
+  test('has the checks job on Linux and the dev lifecycle job on macOS and Windows', () => {
+    expect(jobs.map(({ name }) => name)).toEqual(['checks', 'dev-lifecycle']);
+    expect(workflow.jobs.checks?.['runs-on']).toBe('ubuntu-24.04');
+    const lifecycle = workflow.jobs['dev-lifecycle'];
+    expect(lifecycle?.strategy?.['fail-fast']).toBe(false);
+    expect(lifecycle?.strategy?.matrix?.os).toEqual(['macos-15', 'windows-2025']);
   });
 
-  test('installs Node from .nvmrc before any Bun or Angular step', () => {
-    const setupNode = steps.find((step) => step.uses === 'actions/setup-node@v7');
-    expect(setupNode?.with).toEqual({ 'node-version-file': '.nvmrc' });
-    const firstRun = steps.findIndex((step) => step.run !== undefined);
-    expect(steps.findIndex((step) => step === setupNode)).toBeLessThan(firstRun);
-  });
+  test.each(['checks', 'dev-lifecycle'])(
+    'job %s uses exactly the actions pinned in spec 0001',
+    (name) => {
+      const steps = workflow.jobs[name]?.steps ?? [];
+      expect(steps.flatMap((step) => (step.uses ? [step.uses] : []))).toEqual(PINNED_ACTIONS);
+    },
+  );
 
-  test('installs from the frozen lockfile and runs the same root tasks as developers', () => {
-    expect(commands[0]).toBe('bun ci');
-    for (const command of commands.slice(1)) {
-      const script = /^bun run (\S+)$/.exec(command)?.[1];
-      if (script) expect(Object.keys(rootScripts)).toContain(script);
-      else expect(command).toMatch(/^cargo \S+ --locked/);
-    }
-    expect(commands).toContain('bun run check');
+  test.each(['checks', 'dev-lifecycle'])(
+    'job %s installs Node from .nvmrc before any command',
+    (name) => {
+      const steps = workflow.jobs[name]?.steps ?? [];
+      const setupNode = steps.findIndex((step) => step.uses === 'actions/setup-node@v7');
+      expect(steps[setupNode]?.with).toEqual({ 'node-version-file': '.nvmrc' });
+      expect(setupNode).toBeLessThan(steps.findIndex((step) => step.run !== undefined));
+    },
+  );
+
+  test.each(['checks', 'dev-lifecycle'])(
+    'job %s installs from the frozen lockfile and runs root tasks only',
+    (name) => {
+      const job = workflow.jobs[name];
+      const commands = job ? commandsOf(job) : [];
+      expect(commands[0]).toBe('bun ci');
+      for (const command of commands.slice(1)) {
+        const script = /^bun run (\S+)$/.exec(command)?.[1];
+        if (script) expect(Object.keys(rootScripts)).toContain(script);
+        else if (command.startsWith('bun test'))
+          expect(command).toBe('bun test --no-env-file ./tests/integration/dev.test.ts');
+        else expect(command).toMatch(/^cargo \S+ --locked/);
+      }
+      expect(commands).toContain('bun run check');
+      expect(commands).toContain('bun run test');
+    },
+  );
+
+  test('the checks job also runs the integration tests', () => {
+    const checks = workflow.jobs.checks;
+    expect(checks ? commandsOf(checks) : []).toContain('bun run test:integration');
   });
 });

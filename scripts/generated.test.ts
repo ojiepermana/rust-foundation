@@ -97,7 +97,8 @@ describe('verifyGeneratedRoot', () => {
   });
 });
 
-describe('symbolic links', () => {
+// Creating symbolic links needs extra rights on Windows (spec 0004 audit).
+describe.skipIf(process.platform === 'win32')('symbolic links', () => {
   test('are rejected inside a generated root', () => {
     writeGeneratedManifest(root, 'fixture-generator');
     symlinkSync(join(workspace, 'outside.ts'), join(root, 'src/linked.ts'));

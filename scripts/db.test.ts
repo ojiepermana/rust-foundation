@@ -29,6 +29,14 @@ import { DEFAULT_POSTGRES_PORT } from './postgres-env';
 import { readRepoFile, repoRoot } from './test-helpers';
 
 const NO_DAEMON = 'unix:///nonexistent/docker.sock';
+
+// Portability (spec 0004): Windows has no bash, no `script`, and no unix socket DOCKER_HOST, and a
+// machine without the docker CLI (for example GitHub macOS runners) cannot run `compose config`.
+// Those checks skip there and still run on Linux CI, where the docker CLI is always present.
+const IS_WINDOWS = process.platform === 'win32';
+const HAS_COMPOSE_CLI =
+  spawnSync('docker', ['compose', 'version'], { stdio: 'ignore' }).status === 0;
+const SKIP_DOCKER_CLI = IS_WINDOWS || !HAS_COMPOSE_CLI;
 const ADMIN = 'admin.password-0001';
 const MIGRATOR = 'migrator_password~02';
 const RUNTIME = 'RuntimePassword0003';
@@ -343,7 +351,7 @@ describe('composeEnv', () => {
   });
 });
 
-describe('Compose file (docker compose config, no daemon)', () => {
+describe.skipIf(SKIP_DOCKER_CLI)('Compose file (docker compose config, no daemon)', () => {
   // covers: AC-1
   test('defines project foundation-rust with only the postgres service on the pinned image', () => {
     const { config } = parsedConfig([BASE]);
@@ -519,7 +527,7 @@ describe('init script', () => {
   });
 
   // covers: AC-5
-  test.each([
+  test.skipIf(IS_WINDOWS).each([
     ['FOUNDATION_MIGRATOR_PASSWORD', { FOUNDATION_MIGRATOR_PASSWORD: 'tiny9z' }],
     ['FOUNDATION_RUNTIME_PASSWORD', { FOUNDATION_MIGRATOR_PASSWORD: MIGRATOR }],
   ])('refuses to run when %s breaks the rule, without printing it', (name, values) => {
@@ -596,7 +604,7 @@ describe('db.ts command line (no daemon)', () => {
   );
 
   // covers: AC-1
-  test.each(['up', 'down', 'status', 'reset'])(
+  test.skipIf(IS_WINDOWS).each(['up', 'down', 'status', 'reset'])(
     '%s reports a missing docker command with status 1',
     (subcommand) => {
       const result = runDb([subcommand], { ...noDocker, ...VALID });
@@ -608,7 +616,7 @@ describe('db.ts command line (no daemon)', () => {
   );
 
   // covers: AC-1
-  test.each(['up', 'down', 'status', 'reset'])(
+  test.skipIf(SKIP_DOCKER_CLI).each(['up', 'down', 'status', 'reset'])(
     '%s reports a stopped Docker daemon with status 1',
     (subcommand) => {
       const result = runDb([subcommand], cleanEnv({ DOCKER_HOST: NO_DAEMON, ...VALID }));
@@ -735,7 +743,7 @@ esac
 exit 99
 `;
 
-describe('db.ts against a fake docker command', () => {
+describe.skipIf(IS_WINDOWS)('db.ts against a fake docker command', () => {
   const FAKE_VOLUME = 'fake-project_postgres_data';
   const COMPOSE = 'compose -f infrastructure/compose.yaml';
   const UP = `ARGS ${COMPOSE} up -d --wait --wait-timeout 120 postgres`;

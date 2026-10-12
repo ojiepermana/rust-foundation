@@ -57,7 +57,10 @@ describe('childEnv', () => {
     );
     expect(leaked).toEqual([]);
     expect(env.FOUNDATION_KEEP_ME).toBe('kept');
-    expect(env.PATH).toBe(process.env.PATH);
+    // Windows keeps the original key case (often `Path`), so compare case insensitively.
+    const pathKey = (record: Record<string, string | undefined>) =>
+      Object.keys(record).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH';
+    expect(env[pathKey(env)]).toBe(process.env[pathKey(process.env)]);
   });
 
   // covers: 0002 AC-7

@@ -1,7 +1,7 @@
 # 0004. Task root dan lifecycle development
 
 **Date**: 2026-10-12
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -118,6 +118,9 @@ Pesan fatal ke stderr, lainnya ke stdout.
 | --- | --- | --- |
 | `.env` default tidak ada | `[dev] .env not found; copy .env.example to .env and fill in the values` | 1 |
 | `--env-file` tidak ada | `[dev] env file not found: <path>` | 1 |
+| File env ada tetapi tidak bisa dibaca | `[dev] cannot read env file: <path>` | 1 |
+| Perintah anak tidak bisa dijalankan (misalnya `cargo` tidak ada di PATH) | `[dev] cannot start <perintah>: <alasan>` (stderr), lalu pesan langkah yang gagal | 1 bila langkah wajib |
+| Error tak terduga di supervisor | `[dev] internal error: <pesan>`; semua proses anak yang pernah dinyalakan dihentikan paksa | 1 |
 | Validasi | `[dev] APP_ENV: must be development for bun run dev`, `[dev] APP_HOST: must be an IPv4 or IPv6 address literal`, `[dev] APP_PORT: must be an integer from 1 to 65535`, `[dev] WEB_DEV_PORT: must be an integer from 1024 to 65535`, `[dev] WEB_DEV_PORT: must differ from APP_PORT`, `[dev] POSTGRES_PORT: must be an integer from 1024 to 65535` (semua masalah dilaporkan) | 1 |
 | Port terpakai | `[dev] <VAR>=<port> is already in use (<KODE>); set <VAR> in .env` dengan `<KODE>` dari error bind (`EADDRINUSE`, `EACCES`, `EADDRNOTAVAIL`) atau `accepting connections` | 1 |
 | Database tidak terjangkau | Pesan AC-8 | lanjut |
@@ -153,18 +156,20 @@ Proses anak:
 - Windows: dijalankan `detached: true`. Penghentian langsung `taskkill /PID <pid> /T /F`, karena `taskkill` tanpa `/F` tidak bisa menghentikan proses konsol.
 - Build `cargo` yang sedang berjalan saat penghentian ikut dihentikan dengan cara yang sama.
 - Setelah pemicu berhenti, setiap proses anak yang keluar dianggap wajar.
+- POSIX: penghentian dan penantian berlaku untuk seluruh process group, juga setelah pemimpin group keluar (misalnya `bun run` mati tetapi `ng serve` masih hidup); sinyal ke group yang sudah kosong diabaikan.
+- Env untuk dev server dan `cargo build` tidak memuat variabel `DATABASE_*`, `POSTGRES_*`, atau `*_FILE`; hanya backend yang menerima env lengkap.
 
 Pemicu berhenti: `SIGINT`, `SIGTERM`, `SIGHUP` (POSIX), Ctrl+C dan Ctrl+Break (Windows), dan baris stdin yang setelah `trim` dan huruf kecil sama dengan `q` (dibaca dengan `readline`, tanpa raw mode). EOF atau stdin tertutup tidak menghentikan apa pun. Pemicu ulang dalam 1,5 detik pertama diabaikan; pemicu ulang setelah itu memaksa penghentian. Setelah semua anak berhenti, supervisor menutup stdin dan memanggil `process.exit` dengan status yang sesuai.
 
 Proxy: `apps/web/proxy.conf.mjs` membaca `process.env.DEV_API_TARGET` (melempar error bila kosong, tanpa default) dan mengekspor `export default { '^/api(/|$)': { target, secure: false, changeOrigin: false } }` tanpa `pathRewrite`. Loader Angular hanya mengenali `export default`, sehingga file ini diberi komentar pengecualian aturan ekspor bernama di `AGENTS.md`. `angular.json` menambah `"proxyConfig": "proxy.conf.mjs"` di `serve.options`.
 
-Watcher (AC-5): polling mtime setiap 500 ms atas semua file di bawah `<api-dir>/apps/api` dan `<api-dir>/crates` (bila ada, termasuk bila dibuat setelah start), serta `<api-dir>/Cargo.toml` dan `<api-dir>/Cargo.lock`, mengabaikan `target/`, file `*.md`, dan file sementara editor (`.#*`, `*~`, `*.swp`, `4913`). Perubahan apa pun menjadwalkan build; perubahan selama build menjadwalkan satu build lagi sesudahnya. Restart hanya bila mtime binary hasil build berubah. Backend baru yang gagal start mencetak pesan status keluar lalu menunggu perubahan berikutnya.
+Watcher (AC-5): polling mtime setiap 500 ms atas semua file di bawah `<api-dir>/apps/api` dan `<api-dir>/crates` (bila ada, termasuk bila dibuat setelah start), serta `<api-dir>/Cargo.toml` dan `<api-dir>/Cargo.lock`, mengabaikan `target/`, file `*.md`, dan file sementara editor (`.#*`, `*~`, `*.swp`, `4913`). Perubahan apa pun menjadwalkan build; perubahan selama build menjadwalkan satu build lagi sesudahnya. Restart bila mtime binary hasil build berubah, atau bila backend sedang tidak berjalan. Backend baru yang gagal start mencetak pesan status keluar lalu menunggu perubahan berikutnya.
 
 Log (AC-6): stdout dan stderr setiap anak dipecah per baris dengan buffer (CR dibuang, sisa baris dikirim saat proses berakhir), diberi awalan yang sama, ditulis ke terminal, dan disalin ke file log layanannya. Tanpa timestamp. `.dev/` ditambahkan ke `.gitignore` dan `.prettierignore`.
 
 ### Script `scripts/run-api.ts`
 
-Memuat env seperti langkah 1 (`.env` default boleh tidak ada), lalu menjalankan `cargo run --locked -p api` dengan env itu. Script mengabaikan `SIGINT` untuk dirinya sendiri (proses `cargo` yang menerima sinyal dari terminal) dan keluar dengan status anak, atau `128 + n` bila anak mati karena sinyal.
+Memuat env seperti langkah 1 (`.env` default boleh tidak ada), lalu menjalankan `cargo run --locked -p api` dengan env itu. Script mengabaikan `SIGINT` untuk dirinya sendiri (proses `cargo` yang menerima sinyal dari terminal), meneruskan `SIGTERM` dan `SIGHUP` ke anaknya, dan keluar dengan status anak, atau `128 + n` bila anak mati karena sinyal.
 
 ### Portabilitas test lama
 

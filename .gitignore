@@ -7,3 +7,4 @@ apps/web/.angular/
 .env.*
 !.env.example
 .claude/worktrees/
+.dev/

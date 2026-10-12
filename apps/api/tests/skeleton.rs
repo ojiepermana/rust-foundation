@@ -25,10 +25,15 @@ impl Drop for Server {
 /// configuration, so it listens on the default address.
 fn api_command() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_api"));
-    command.env_clear().env("APP_ENV", "development").env(
-        "DATABASE_URL",
-        "postgres://app:placeholder@127.0.0.1:5432/app_test",
-    );
+    command
+        .env_clear()
+        // Windows needs SYSTEMROOT for sockets; it is not configuration (spec 0004 audit).
+        .envs(std::env::var_os("SYSTEMROOT").map(|root| ("SYSTEMROOT", root)))
+        .env("APP_ENV", "development")
+        .env(
+            "DATABASE_URL",
+            "postgres://app:placeholder@127.0.0.1:5432/app_test",
+        );
     command
 }
 

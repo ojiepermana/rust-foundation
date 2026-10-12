@@ -118,8 +118,11 @@ describe('guard as a process', () => {
 
 describe('web scripts behind the guard', () => {
   // A PATH that keeps Bun but drops Node, the case where Bun silently swaps runtimes.
+  // POSIX only: the PATH below and the `sh` probe have no Windows equivalent (spec 0004 audit).
+  const isWindows = process.platform === 'win32';
   const pathWithoutNode = [dirname(process.execPath), '/usr/bin', '/bin'].join(':');
   const nodeStillVisible =
+    isWindows ||
     spawnSync('sh', ['-c', 'command -v node'], { env: { PATH: pathWithoutNode } }).status === 0;
 
   function runRoot(args: string[], env: Record<string, string | undefined> = process.env) {

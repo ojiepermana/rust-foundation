@@ -13,7 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
-import { childEnv, gitVisibleFiles, repoRoot } from './test-helpers';
+import { childEnv, gitVisibleFiles, repoRoot } from '../../scripts/test-helpers';
 
 // Builds a fresh copy of everything git would commit and proves that installs
 // and builds run from the committed lockfiles without changing any file.
@@ -195,6 +195,16 @@ describe('clean checkout', () => {
     () => {
       expect(run('git', ['config', '--get', 'core.hooksPath']).output.trim()).toBe('.githooks');
       expectSuccess('bun', ['run', 'check']);
+    },
+    STEP_TIMEOUT_MS,
+  );
+
+  // covers: 0004 AC-2
+  test(
+    'runs the unconditional root tasks build and test without .env or Docker',
+    () => {
+      expectSuccess('bun', ['run', 'build']);
+      expectSuccess('bun', ['run', 'test']);
     },
     STEP_TIMEOUT_MS,
   );

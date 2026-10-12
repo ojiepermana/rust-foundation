@@ -3,6 +3,7 @@ node_modules/
 target/
 apps/web/dist/
 apps/web/.angular/
+.dev/
 
 # Lockfiles
 bun.lock

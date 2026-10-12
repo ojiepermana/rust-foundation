@@ -20,12 +20,12 @@ Tracer Bullet: membuktikan satu alur nyata lintas lapisan terlebih dahulu, lalu 
 bun install                      # install dari bun.lock (CI: bun ci)
 bun run build:api                # cargo build --locked -p api
 bun run build:web                # ng build lewat guard Node
-bun run test:scripts             # test tooling dan clean checkout (bun test)
-bun run test:web                 # Vitest tanpa watch
-cargo test --locked --workspace  # test Rust
+bun run dev                      # web, api, dan proxy /api dengan reload backend (butuh .env); berhenti dengan Ctrl+C atau q
+bun run build                    # build:api lalu build:web
+bun run test                     # test cepat: test:scripts, test:web, test:api
+bun run test:integration         # test lambat: clean checkout, lifecycle dev, PostgreSQL (butuh Docker)
 bun run check                    # format:check, lint, typecheck, check:generated (juga dijalankan hook dan CI)
 bun run db:up                    # PostgreSQL dev; juga db:down, db:status, db:reset (DESTRUCTIVE)
-bun test --no-env-file ./tests/integration/postgres.test.ts  # test PostgreSQL, butuh Docker
 bun run format                   # Prettier dan rustfmt menulis perbaikan
 ```
 
@@ -38,12 +38,13 @@ Disimpan di `docs/specs/NNNN-judul/` (`index.md`, `rationale.md`, `verify.md`). 
 - Arsitektur berlapis per modul: domain, application (use case), infrastructure, transport (handler Axum). Dependensi mengarah ke dalam; domain tidak mengimpor Axum, IO Tokio, atau driver database. Struktur crate rinci ditetapkan fitur 8.
 - Kode, identifier, komentar, dan pesan error berbahasa Inggris; dokumen di `docs/` berbahasa Indonesia.
 - Rust: rustfmt; Clippy set default sebagai error (`-D warnings`); `unsafe_code = "forbid"` di `[workspace.lints]`.
-- TypeScript strict; typescript-eslint `strictTypeChecked` dan `stylisticTypeChecked`; angular-eslint recommended plus aksesibilitas template; ekspor bernama saja (tanpa default export).
+- TypeScript strict; typescript-eslint `strictTypeChecked` dan `stylisticTypeChecked`; angular-eslint recommended plus aksesibilitas template; ekspor bernama saja (tanpa default export), kecuali `apps/web/proxy.conf.mjs` yang wajib default export untuk loader Angular.
 - Dependency JavaScript dipin versi tepat; jangan memakai `npm` atau `npx` di repo (gunakan `bunx`); Angular CLI selalu lewat script `bun run` agar guard Node berjalan.
 - Alat atau library baru hanya lewat keputusan spec (`/architect`); jangan memasang teknologi di luar spec yang berlaku.
 - File hasil generate hanya berada di root yang terdaftar di `generated-roots.json` (tambahkan root baru juga ke `.prettierignore`), dikecualikan dari lint dan format, dan ditolak `bun run check` bila tidak cocok dengan manifest. Generator wajib memanggil `writeGeneratedManifest` dari `scripts/generated.ts` setelah menulis file.
 - Konfigurasi backend hanya dari env proses (spec 0002): salin `.env.example` ke `.env`; variabel baru ditambah lewat spec, tabel skema, dan bagiannya di `.env.example`. Secret tidak pernah dicetak; frontend membaca konfigurasi publik dari `/config.json` lewat `APP_CONFIG`.
 - Script Bun yang butuh `.env` memuatnya lewat `scripts/env-file.ts` dengan `bun --no-env-file`; test membangun env sendiri dan tidak mewarisi `.env` developer.
+- Katalog task ada di `docs/development.md` dan dijaga test: script root baru wajib punya barisnya, dan nama task fitur berikutnya diambil dari tabel *Dicadangkan*. Test cepat di `scripts/`, test lambat di `tests/integration/`.
 - Commit memakai conventional commits (`feat(scope): ...`); sebut nomor fitur scope bila relevan.
 
 ## Tooling

@@ -156,6 +156,8 @@ describe('npm refusal', () => {
       const run = spawnSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
         cwd: copy,
         encoding: 'utf8',
+        // npm is npm.cmd on Windows, which needs a shell (spec 0004 audit).
+        shell: process.platform === 'win32',
       });
       expect(run.status).not.toBe(0);
       expect(run.stderr).toContain('EBADDEVENGINES');

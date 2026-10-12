@@ -13,6 +13,7 @@ Workspace Angular CLI (`angular.json` di sini) sekaligus anggota Bun Workspace b
 | `src/app/app.config.ts` | Provider aplikasi (tanpa zone change detection) |
 | `src/app/config/app-config.ts` | Pemuat dan validator `/config.json`, token `APP_CONFIG`, `startApp` |
 | `public/config.json` | Konfigurasi runtime publik default (`apiBaseUrl: /api`) |
+| `proxy.conf.mjs` | Proxy dev server untuk `^/api(/|$)` ke `DEV_API_TARGET` yang diisi `bun run dev` |
 | `src/app/app.spec.ts` | Unit test bawaan |
 
 ## Commands
@@ -21,6 +22,7 @@ Workspace Angular CLI (`angular.json` di sini) sekaligus anggota Bun Workspace b
 bun run build:web                       # dari root
 bun run test:web                        # dari root, Vitest tanpa watch
 bun run --filter web ng <perintah>      # Angular CLI lain lewat guard
+bun run dev                             # dari root: dev server, backend, dan proxy (spec 0004)
 ```
 
 ## Conventions
@@ -29,6 +31,7 @@ bun run --filter web ng <perintah>      # Angular CLI lain lewat guard
 - Setelah `ng update` atau `ng add`, kembalikan versi bertanda `^` atau `~` menjadi versi tepat.
 - Jangan menambah `zone.js`, SSR, atau `NgModule`.
 - Output build ada di `dist/web/browser/`.
+- `start` (`ng serve`) hanya dijalankan lewat `bun run dev`; tanpa `DEV_API_TARGET` file proxy melempar error.
 - Konfigurasi hanya dari `/config.json` saat runtime lewat `APP_CONFIG`; jangan memakai `environment*.ts`, `fileReplacements`, `define`, atau `process.env` (spec 0002). Semua isi `config.json` publik.
 
 ## Agent skills

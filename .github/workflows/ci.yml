@@ -1,4 +1,5 @@
-# Fast PR checks (feature 2). Every step calls the same root task a developer runs locally.
+# Fast PR checks (feature 2) and the dev lifecycle on three operating systems (feature 4).
+# Every step calls the same root task a developer runs locally.
 name: ci
 
 on:
@@ -16,7 +17,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -42,16 +43,47 @@ jobs:
       - name: Format, lint, Clippy, typecheck, generated files
         run: bun run check
 
-      - name: Tooling tests and clean checkout
-        run: bun run test:scripts
+      - name: Fast tests
+        run: bun run test
 
-      - name: Web unit tests
-        run: bun run test:web
-
-      - name: Rust tests
-        run: cargo test --locked --workspace
+      # Clean checkout, dev lifecycle, and PostgreSQL (Docker is available on Linux runners).
+      - name: Integration tests
+        run: bun run test:integration
 
       - name: Build
-        run: |
-          bun run build:api
-          bun run build:web
+        run: bun run build
+
+  dev-lifecycle:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install from lockfiles
+        run: bun ci
+
+      - name: Format, lint, Clippy, typecheck, generated files
+        run: bun run check
+
+      - name: Fast tests
+        run: bun run test
+
+      - name: Dev lifecycle
+        run: bun test --no-env-file ./tests/integration/dev.test.ts

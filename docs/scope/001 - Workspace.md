@@ -60,16 +60,16 @@ Satu antarmuka task di root yang mengoordinasikan Cargo Workspace dan Bun Worksp
 **Spec:** [0004](../specs/0004-task-root-lifecycle-development/index.md)
 
 - [x] Rancang antarmuka task dan lifecycle (spec): `/architect task root dan lifecycle development`
-- [ ] Build it: `/develop task root dan lifecycle development`
-  - [ ] Supervisor `dev` dengan preflight, build pertama, backend, dev server, dan proxy (AC-3, AC-4, AC-8)
-  - [ ] Penghentian lintas OS dan pemicu berhenti (AC-7)
-  - [ ] Watcher polling, reload, dan log terpisah (AC-5, AC-6)
-  - [ ] Katalog task, script root, dan tata letak test (AC-1, AC-2)
-  - [ ] Portabilitas test, test lifecycle, dan CI tiga OS (AC-9)
+- [x] Build it: `/develop task root dan lifecycle development` (code in `scripts/dev.ts`, `scripts/dev-support.ts`, `scripts/run-api.ts`, `apps/web/proxy.conf.mjs`, `docs/development.md`, `.github/workflows/ci.yml`)
+  - [x] Supervisor `dev` dengan preflight, build pertama, backend, dev server, dan proxy (AC-3, AC-4, AC-8)
+  - [x] Penghentian lintas OS dan pemicu berhenti (AC-7)
+  - [x] Watcher polling, reload, dan log terpisah (AC-5, AC-6)
+  - [x] Katalog task, script root, dan tata letak test (AC-1, AC-2)
+  - [x] Portabilitas test, test lifecycle, dan CI tiga OS (AC-9)
 - [ ] Verifikasi: `/check verify task root dan lifecycle development`
-- [ ] Test: `/test task root dan lifecycle development`
-- [ ] Review (model baru): `/check review task root dan lifecycle development`
-- [ ] Dokumentasikan: `/document task root dan lifecycle development`
+- [x] Test: `/test task root dan lifecycle development` (`tests/integration/dev.test.ts`, `scripts/task-catalog.test.ts`, `scripts/dev-support.test.ts`, `tests/integration/clean-checkout.test.ts`)
+- [x] Review (model baru): `/check review task root dan lifecycle development` (`docs/reviews/2026-10-13-main-task-root-dev.md`, Changes requested; major dan minor ditindaklanjuti)
+- [x] Dokumentasikan: `/document task root dan lifecycle development` (`CHANGELOG.md`)
 
 ### 5. Infrastruktur PostgreSQL development · done
 

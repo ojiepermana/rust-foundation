@@ -26,6 +26,8 @@ where
     let mut command = Command::new(env!("CARGO_BIN_EXE_api"));
     command
         .env_clear()
+        // Windows needs SYSTEMROOT for sockets; it is not configuration (spec 0004 audit).
+        .envs(std::env::var_os("SYSTEMROOT").map(|root| ("SYSTEMROOT", root)))
         .envs(vars.iter().map(|(name, value)| (name, value)))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
