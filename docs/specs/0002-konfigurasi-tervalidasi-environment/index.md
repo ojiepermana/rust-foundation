@@ -70,9 +70,9 @@ Boolean hanya menerima `true` atau `false` huruf kecil.
 ### Semantik `<NAMA>_FILE`
 
 - Berlaku untuk `DATABASE_URL` dan `DATABASE_MIGRATOR_URL`.
-- Isi file dibaca sebagai byte, maksimal 8 KiB, harus UTF-8. Tepat satu `\n` atau `\r\n` di akhir dibuang; spasi lain di awal atau akhir ditolak oleh aturan umum.
+- Isi file dibaca sebagai byte dengan batas: `main` membuka file dan membaca paling banyak 8 KiB + 1 byte (signature `read_file` tetap), sehingga file yang lebih besar, termasuk `/dev/zero`, langsung gagal dengan pesan batas tanpa dimuat penuh ke memori. FIFO tanpa penulis tetap memblok saat dibuka. Isi harus UTF-8. Tepat satu `\n` atau `\r\n` di akhir dibuang; spasi lain di awal atau akhir ditolak oleh aturan umum.
 - Isi kosong atau hanya baris baru ditolak sebagai file kosong.
-- Pesan file selalu menyebut path apa adanya (path bukan secret) dan tidak pernah menyertakan isi file atau teks error OS.
+- Pesan file menyebut path apa adanya dan tidak pernah menyertakan isi file atau teks error OS, kecuali bila nilai `<NAMA>_FILE` mengandung `://` atau `@` (kemungkinan URL atau credential yang salah tempat): path tidak dicetak sama sekali.
 - Kesalahan isi (grammar, `sslmode`) dilaporkan dengan nama variabel utama, misalnya `DATABASE_URL`.
 
 ### Grammar URL database (tanpa crate)
@@ -113,6 +113,7 @@ Vektor uji bersama (dipakai test Rust dan Vitest):
 | --- | --- | --- |
 | semua | `<NAMA>` dan `<NAMA>_FILE` diisi | `set either <NAMA> or <NAMA>_FILE, not both` |
 | `*_FILE` | file tidak bisa dibaca | (baris memakai `<NAMA>_FILE: `) `cannot read file "<path>"` |
+| `*_FILE` | file tidak bisa dibaca dan nilai `_FILE` mengandung `://` atau `@` | (`<NAMA>_FILE: `) `cannot read file (path not shown because it looks like a URL or credential)` |
 | `*_FILE` | file kosong | (`<NAMA>_FILE: `) `file is empty` |
 | `*_FILE` | lebih dari 8 KiB | (`<NAMA>_FILE: `) `file is larger than 8 KiB` |
 | `*_FILE` | bukan UTF-8 | (`<NAMA>_FILE: `) `file is not valid UTF-8` |
@@ -135,6 +136,19 @@ Vektor uji bersama (dipakai test Rust dan Vitest):
 | `WEB_API_BASE_URL` | aturan lingkungan | `must be a path or an https:// URL when APP_ENV is staging or production` |
 
 Pesan tidak pernah menyalin nilai yang diberikan, kecuali path file pada baris `*_FILE`.
+
+### Tafsiran yang dikonfirmasi pengguna (2026-10-13)
+
+Dicatat dari build fitur 3 dan dikonfirmasi agar menjadi keputusan tertulis:
+
+1. Port hanya menerima digit ASCII.
+2. "Spasi" di aturan umum berarti whitespace Unicode (`char::is_whitespace`), dan Rust serta TypeScript menguji himpunan code point yang sama.
+3. Item query URL database harus berbentuk `k=v` dengan kunci tidak kosong; aturan karakter mentah berlaku juga untuk kunci.
+4. Batas 8 KiB dihitung dari byte mentah sebelum baris baru di akhir dibuang.
+5. Isi `_FILE` yang bukan UTF-8 dilaporkan di baris `<NAMA>_FILE`.
+6. `Config` tidak menyimpan field `app_env`; lingkungan hanya dipakai saat validasi.
+7. Aturan URL bersama tidak memvalidasi rentang port.
+8. Kegagalan `bootstrap` Angular setelah konfigurasi valid hanya dicatat lewat `logError`, tanpa pesan alert konfigurasi.
 
 ### Implementasi backend
 
