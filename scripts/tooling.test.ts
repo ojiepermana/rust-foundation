@@ -44,9 +44,9 @@ describe('root tasks', () => {
     expect(rootScripts['format:check']).toBe('prettier --check . && cargo fmt --all --check');
   });
 
-  test('typecheck covers both the tooling scripts and the web app', () => {
+  test('typecheck covers the tooling scripts, the root tests, and the web app', () => {
     expect(rootScripts.typecheck).toBe(
-      'tsc -p scripts/tsconfig.json && bun run --filter web typecheck',
+      'tsc -p scripts/tsconfig.json && tsc -p tests/tsconfig.json && bun run --filter web typecheck',
     );
   });
 });

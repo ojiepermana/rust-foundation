@@ -1,6 +1,8 @@
 # Test override (spec 0003): keep the data directory in memory instead of a volume.
+# The volume list is replaced whole, so the init script mount is listed again here.
 services:
   postgres:
-    volumes: !reset []
+    volumes: !override
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
     tmpfs:
       - /var/lib/postgresql

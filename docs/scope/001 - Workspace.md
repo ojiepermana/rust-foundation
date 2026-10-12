@@ -80,11 +80,11 @@ Compose untuk development dengan PostgreSQL dan service minimum, volume persiste
 **Spec:** [0003](../specs/0003-infrastruktur-postgresql-development/index.md)
 
 - [x] Rancang topologi dev dan role database (spec): `/architect infrastruktur PostgreSQL development`
-- [ ] Build it: `/develop infrastruktur PostgreSQL development`
-  - [ ] Compose, override test, dan script init role (AC-1, AC-5)
-  - [ ] Loader env, perintah `db:*`, validasi, dan konfirmasi reset (AC-1 sampai AC-4)
-  - [ ] Harness test sementara dan pembersihan (AC-6)
-  - [ ] `.env.example` bagian infrastruktur dan tsconfig test (AC-7)
+- [x] Build it: `/develop infrastruktur PostgreSQL development` (code in `infrastructure/`, `scripts/db.ts`, `scripts/env-file.ts`, `scripts/postgres-env.ts`, `scripts/testing/postgres.ts`, `tests/integration/`)
+  - [x] Compose, override test, dan script init role (AC-1, AC-5)
+  - [x] Loader env, perintah `db:*`, validasi, dan konfirmasi reset (AC-1 sampai AC-4)
+  - [x] Harness test sementara dan pembersihan (AC-6)
+  - [x] `.env.example` bagian infrastruktur dan tsconfig test (AC-7)
 - [ ] Verifikasi: `/check verify infrastruktur PostgreSQL development`
 - [ ] Test: `/test infrastruktur PostgreSQL development`
 - [ ] Review (model baru): `/check review infrastruktur PostgreSQL development`
