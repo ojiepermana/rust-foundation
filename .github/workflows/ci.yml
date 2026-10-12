@@ -1,0 +1,57 @@
+# Fast PR checks (feature 2). Every step calls the same root task a developer runs locally.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Node must be on PATH, otherwise Bun silently runs Angular on its own runtime.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Reads packageManager (bun@x.y.z) from package.json.
+      - uses: oven-sh/setup-bun@v2
+
+      # Reads rust-toolchain.toml, installs rustfmt and clippy, and caches Cargo.
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install from lockfiles
+        run: bun ci
+
+      - name: Format, lint, Clippy, typecheck, generated files
+        run: bun run check
+
+      - name: Tooling tests and clean checkout
+        run: bun run test:scripts
+
+      - name: Web unit tests
+        run: bun run test:web
+
+      - name: Rust tests
+        run: cargo test --locked --workspace
+
+      - name: Build
+        run: |
+          bun run build:api
+          bun run build:web

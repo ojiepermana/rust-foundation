@@ -52,6 +52,7 @@ Versi di tabel ini adalah hasil audit 2026-10-12 (rincian dan sumber di [rationa
 | Test Rust | `cargo test` bawaan | Tanpa binary tambahan. Dipilih pengguna. |
 | E2E browser (dipasang saat E2E pertama) | Playwright `@playwright/test` `1.64.0` | Multi browser dan cocok untuk skenario cookie lintas origin Profil A. Dipilih pengguna. |
 | Test untuk script tooling | `bun test scripts` bawaan Bun | Script tooling dijalankan Bun sebagai task runner, jadi test memakai runner bawaan Bun tanpa dependency tambahan. Cakupan dibatasi ke `scripts` agar spec Vitest Angular tidak ikut dijalankan. |
+| Tipe TypeScript untuk script tooling (dipasang fitur 2) | `@types/bun` `1.4.3` dan `@types/node` `24.19.2` | Hanya definisi tipe untuk Bun dan Node yang sudah dipilih, agar `scripts/` lulus typecheck strict; versinya mengikuti pin Bun dan major Node. Ditambahkan 2026-10-12 saat fitur 2 dan disetujui pengguna. |
 | Format TypeScript, HTML, CSS, JSON, Markdown | Prettier `3.9.10` (terpasang bersama scaffold karena template Angular 22 menyertakannya; konfigurasi dan pemindahan ke root oleh fitur 2) | Kombinasi yang didukung resmi Angular. Dipilih pengguna. |
 | Lint TypeScript dan template (dipasang fitur 2) | ESLint `10.12.0`, `typescript-eslint` `8.71.1`, `angular-eslint` `22.6.0` | Biome belum mendukung template Angular. Dipilih pengguna. |
 | Lint dan format Rust (dipasang fitur 2) | `rustfmt` dan Clippy dari toolchain yang dipin | Ikut versi toolchain, tidak perlu pin terpisah. |
@@ -226,6 +227,7 @@ Status mengikuti brief: `terverifikasi` berarti diputuskan dan versinya diperiks
 ## Follow-up
 
 - [ ] Tinjau ulang pin Node setelah Node 26 menjadi Active LTS (2026-10-28) dan sebelum Node 24 mendekati akhir dukungan.
+- [ ] Layout `hoisted` masih mengizinkan import dependency yang tidak dideklarasikan (phantom dependency). Fitur 2 tidak menutupnya karena butuh alat lint baru di luar spec ini; putuskan lewat `/architect` (misalnya aturan import ESLint atau linker `isolated`) bila celah ini mulai berisiko.
 - [ ] Mesin ini menjalankan PostgreSQL dari Laravel Herd di `127.0.0.1:5432` dan `127.0.0.1:5433`. Spec fitur 4 dan 5 perlu memilih port yang tidak bentrok dan mendeteksi konflik port.
 - [ ] Kecocokan `tower-http` 0.7 dengan Axum 0.8.9 dibuktikan dengan build saat fitur pertama yang membutuhkannya (fitur 9, 10, atau 26).
 - [ ] Scope fitur 1 menulis "tanpa angka yang belum diverifikasi"; spec ini memakai aturan AC-1 untuk baris `sebagian`. `/sync` atau `/scope` dapat menyelaraskan kalimat scope.

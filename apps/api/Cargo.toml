@@ -8,3 +8,6 @@ rust-version.workspace = true
 [dependencies]
 axum = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
+
+[lints]
+workspace = true

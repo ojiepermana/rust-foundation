@@ -50,7 +50,7 @@ Microservices, Kubernetes, NATS atau Kafka, Redis, billing, multi tenancy, workf
 | # | Fitur | Fase | Status |
 | --- | --- | --- | --- |
 | 1 | [Stack, audit, dan scaffold workspace](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
-| 2 | [Standar koding dan tooling](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
+| 2 | [Standar koding dan tooling](<001 - Workspace.md>) | Fondasi (M0, M1) | in-progress |
 | 3 | [Konfigurasi tervalidasi dan environment](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
 | 4 | [Task root dan lifecycle development](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |
 | 5 | [Infrastruktur PostgreSQL development](<001 - Workspace.md>) | Fondasi (M0, M1) | planned |

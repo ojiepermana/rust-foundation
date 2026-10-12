@@ -10,3 +10,6 @@ rust-version = "1.99"
 [workspace.dependencies]
 axum = "0.8.9"
 tokio = "~1.53"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

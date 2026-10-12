@@ -130,18 +130,25 @@ describe('web scripts behind the guard', () => {
   test('bun --bun on the web build stops at the guard with status 1', () => {
     const run = runRoot(['--bun', 'run', '--filter', 'web', 'build']);
     expect(run.status).not.toBe(0);
-    expect(`${run.stdout}${run.stderr}`).toContain('guard-node: Angular tooling must run on Node.js');
+    expect(`${run.stdout}${run.stderr}`).toContain(
+      'guard-node: Angular tooling must run on Node.js',
+    );
   });
 
   // covers: AC-9
   // A top level `bun run` shims `node` with Bun, so the guard reports the Bun runtime.
   // A nested `bun run` (for example inside `bun run test:scripts`) adds no shim, so the
   // shell fails first with "node: command not found". Both stop before Angular starts.
-  test.skipIf(nodeStillVisible)('the web build fails before Angular starts when node is missing from PATH', () => {
-    const run = runRoot(['run', 'build:web'], { ...process.env, PATH: pathWithoutNode });
-    const output = `${run.stdout}${run.stderr}`;
-    expect(run.status).not.toBe(0);
-    expect(output).toMatch(/guard-node: Angular tooling must run on Node\.js|node: command not found/);
-    expect(output).not.toContain('Building');
-  });
+  test.skipIf(nodeStillVisible)(
+    'the web build fails before Angular starts when node is missing from PATH',
+    () => {
+      const run = runRoot(['run', 'build:web'], { ...process.env, PATH: pathWithoutNode });
+      const output = `${run.stdout}${run.stderr}`;
+      expect(run.status).not.toBe(0);
+      expect(output).toMatch(
+        /guard-node: Angular tooling must run on Node\.js|node: command not found/,
+      );
+      expect(output).not.toContain('Building');
+    },
+  );
 });

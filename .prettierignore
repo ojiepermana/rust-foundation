@@ -1,0 +1,20 @@
+# Build output and dependencies
+node_modules/
+target/
+apps/web/dist/
+apps/web/.angular/
+
+# Lockfiles
+bun.lock
+Cargo.lock
+skills-lock.json
+
+# Documents maintained by the workflow skills and third party skills
+docs/
+**/AGENTS.md
+**/CLAUDE.md
+CHANGELOG.md
+.claude/
+
+# Generated roots (keep in sync with generated-roots.json)
+packages/api-client/

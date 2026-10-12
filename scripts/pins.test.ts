@@ -4,7 +4,16 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkRuntime } from './guard-node.mjs';
-import { gitVisibleFiles, readRepoFile, readRepoJson, repoRoot } from './test-helpers';
+import {
+  gitVisibleFiles,
+  readBunfig,
+  readCargoManifest,
+  readPackageManifest,
+  readRepoFile,
+  readRustToolchain,
+  repoRoot,
+  type PackageManifest,
+} from './test-helpers';
 
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
 const DEPENDENCY_FIELDS = [
@@ -14,7 +23,7 @@ const DEPENDENCY_FIELDS = [
   'peerDependencies',
   'overrides',
   'resolutions',
-];
+] as const satisfies readonly (keyof PackageManifest)[];
 const FOREIGN_LOCKFILES = [
   'package-lock.json',
   'npm-shrinkwrap.json',
@@ -25,7 +34,7 @@ const FOREIGN_LOCKFILES = [
 
 const files = gitVisibleFiles();
 const manifests = files.filter((file) => file === 'package.json' || file.endsWith('/package.json'));
-const rootManifest = readRepoJson('package.json');
+const rootManifest = readPackageManifest('package.json');
 
 describe('dependency versions', () => {
   // covers: AC-3
@@ -36,7 +45,7 @@ describe('dependency versions', () => {
 
   // covers: AC-3
   test.each(manifests)('%s pins every dependency to an exact version', (manifestPath) => {
-    const manifest = readRepoJson(manifestPath);
+    const manifest = readPackageManifest(manifestPath);
     const loose: string[] = [];
     for (const field of DEPENDENCY_FIELDS) {
       for (const [name, version] of Object.entries(manifest[field] ?? {})) {
@@ -50,10 +59,10 @@ describe('dependency versions', () => {
 
   // covers: AC-3
   test('bunfig keeps bun add exact, uses the hoisted linker, and has no [run] section', () => {
-    const bunfig = Bun.TOML.parse(readRepoFile('bunfig.toml')) as Record<string, any>;
+    const bunfig = readBunfig();
     expect(bunfig.install).toMatchObject({ linker: 'hoisted', exact: true });
     expect(bunfig.run).toBeUndefined();
-    expect(bunfig.install.trustedDependencies).toBeUndefined();
+    expect(bunfig.install?.trustedDependencies).toBeUndefined();
   });
 });
 
@@ -75,7 +84,7 @@ describe('lockfiles', () => {
   // covers: AC-4
   test('bun.lock and Cargo.lock exist only at the root', () => {
     const nested = files.filter(
-      (file) => (file.endsWith('/bun.lock') || file.endsWith('/Cargo.lock')) && file.includes('/'),
+      (file) => file.endsWith('/bun.lock') || file.endsWith('/Cargo.lock'),
     );
     expect(nested).toEqual([]);
   });
@@ -84,8 +93,9 @@ describe('lockfiles', () => {
 describe('toolchain pins', () => {
   // covers: AC-3
   test('Bun is pinned exactly and npm is refused through devEngines', () => {
-    expect(rootManifest.packageManager).toMatch(/^bun@\d+\.\d+\.\d+$/);
-    const pinnedBun = rootManifest.packageManager.slice('bun@'.length);
+    const packageManager = rootManifest.packageManager ?? '';
+    expect(packageManager).toMatch(/^bun@\d+\.\d+\.\d+$/);
+    const pinnedBun = packageManager.slice('bun@'.length);
     expect(rootManifest.devEngines?.packageManager).toEqual({
       name: 'bun',
       version: pinnedBun,
@@ -108,22 +118,22 @@ describe('toolchain pins', () => {
   // covers: AC-3, AC-9
   test('the engines.node upper bound closes right above the .nvmrc major', () => {
     const major = Number(readRepoFile('.nvmrc').trim().replace(/^v/, '').split('.')[0]);
-    expect(rootManifest.engines?.node).toMatch(new RegExp(`<${major + 1}$`));
+    expect(rootManifest.engines?.node).toMatch(new RegExp(`<${String(major + 1)}$`));
   });
 
   // covers: AC-3
   test('rust-toolchain.toml pins an exact channel with rustfmt and clippy', () => {
-    const toolchain = Bun.TOML.parse(readRepoFile('rust-toolchain.toml')) as Record<string, any>;
+    const toolchain = readRustToolchain();
     expect(toolchain.toolchain.channel).toMatch(EXACT_VERSION);
-    expect(toolchain.toolchain.components).toEqual(expect.arrayContaining(['rustfmt', 'clippy']));
+    expect(toolchain.toolchain.components ?? []).toContain('rustfmt');
+    expect(toolchain.toolchain.components ?? []).toContain('clippy');
   });
 
   // covers: AC-3, AC-5
   test('the workspace rust-version matches the pinned toolchain major and minor', () => {
-    const toolchain = Bun.TOML.parse(readRepoFile('rust-toolchain.toml')) as Record<string, any>;
-    const cargo = Bun.TOML.parse(readRepoFile('Cargo.toml')) as Record<string, any>;
-    const [major, minor] = toolchain.toolchain.channel.split('.');
-    expect(cargo.workspace.package['rust-version']).toBe(`${major}.${minor}`);
+    const [major, minor] = readRustToolchain().toolchain.channel.split('.');
+    const cargo = readCargoManifest('Cargo.toml');
+    expect(cargo.workspace?.package?.['rust-version']).toBe(`${major ?? ''}.${minor ?? ''}`);
   });
 
   // covers: AC-4
@@ -156,4 +166,3 @@ describe('npm refusal', () => {
     }
   }, 60_000);
 });
-

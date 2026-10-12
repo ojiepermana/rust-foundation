@@ -16,10 +16,27 @@
     }
   },
   "scripts": {
+    "prepare": "bun scripts/install-hooks.ts",
     "build:web": "bun run --filter web build",
     "test:web": "bun run --filter web test",
     "build:api": "cargo build --locked -p api",
     "run:api": "cargo run --locked -p api",
-    "test:scripts": "bun test scripts"
+    "test:scripts": "bun test scripts",
+    "format": "prettier --write . && cargo fmt --all",
+    "format:check": "prettier --check . && cargo fmt --all --check",
+    "lint": "eslint . --max-warnings 0 && cargo clippy --locked --workspace --all-targets -- -D warnings",
+    "typecheck": "tsc -p scripts/tsconfig.json && bun run --filter web typecheck",
+    "check:generated": "bun scripts/check-generated.ts",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run check:generated"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/bun": "1.4.3",
+    "@types/node": "24.19.2",
+    "angular-eslint": "22.6.0",
+    "eslint": "10.12.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1"
   }
 }
