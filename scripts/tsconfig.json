@@ -14,5 +14,5 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["*.ts", "*.mjs"]
+  "include": ["**/*.ts", "**/*.mjs"]
 }

@@ -1,7 +1,7 @@
 # 0002. Konfigurasi tervalidasi dan environment
 
 **Date**: 2026-10-12
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
@@ -154,7 +154,7 @@ Dicatat dari build fitur 3 dan dikonfirmasi agar menjadi keputusan tertulis:
 
 - Modul `apps/api/src/config.rs` memuat konstanta `SCHEMA` (nama, wajib, default, secret, punya varian `_FILE`), struct `Config` (`#[derive(Debug)]`), tipe `Secret(String)` dengan `expose(&self) -> &str` serta `Debug` dan `Display` manual yang mencetak `[redacted]` (tanpa `Serialize` dan `PartialEq`), dan fungsi murni `Config::load(read_var, read_file)`. `read_var: Fn(&str) -> Result<Option<String>, NotUnicode>`; `read_file: Fn(&Path) -> io::Result<Vec<u8>>`. Hasilnya `Result<Config, Vec<ConfigError>>`.
 - Field yang belum dibaca kode lain diberi `#[allow(dead_code)]` dengan komentar yang menyebut fitur pemakainya (6, 14, 17, 26, 30, 31).
-- `main` memanggil `Config::load` dengan `std::env::var_os` dan `std::fs::read`. Gagal: tulis header dan baris ke stderr memakai `writeln!` yang hasilnya diabaikan (`eprintln!` dapat panic bila stderr tertutup), lalu kembalikan `ExitCode::from(78)`. Sukses: bind `SocketAddr` dari `APP_HOST` dan `APP_PORT`; kegagalan bind tetap panic dengan pesan `cannot bind {addr}: {error}`; cetak `api listening on http://{listener.local_addr()}`.
+- `main` memanggil `Config::load` dengan `std::env::var_os` dan pembaca file berbatas (paling banyak 8 KiB + 1 byte). Gagal: tulis header dan baris ke stderr memakai `writeln!` yang hasilnya diabaikan (`eprintln!` dapat panic bila stderr tertutup), lalu kembalikan `ExitCode::from(78)`. Sukses: bind `SocketAddr` dari `APP_HOST` dan `APP_PORT`; kegagalan bind tetap panic dengan pesan `cannot bind {addr}: {error}`; cetak `api listening on http://{listener.local_addr()}`.
 - Server belum membuka koneksi database.
 
 ### Konfigurasi frontend

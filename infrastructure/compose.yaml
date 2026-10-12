@@ -1,0 +1,38 @@
+# Development PostgreSQL for Foundation Rust (spec 0003).
+# One service, postgres, published only on 127.0.0.1. Data lives in the named
+# volume foundation-rust_postgres_data and survives `bun run db:down`.
+# `bun run db:reset` is the only supported way to delete that data.
+# Passwords come from the shell environment or the root .env file; none are stored here.
+name: foundation-rust
+
+services:
+  postgres:
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: foundation_admin
+      POSTGRES_DB: foundation
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?set POSTGRES_ADMIN_PASSWORD in .env}
+      FOUNDATION_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD:?set POSTGRES_MIGRATOR_PASSWORD in .env}
+      FOUNDATION_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?set POSTGRES_RUNTIME_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-local=scram-sha-256 --auth-host=scram-sha-256
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-15432}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # $$ keeps Compose from interpolating PGDATA from the host environment.
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -h 127.0.0.1 -p 5432 -U foundation_admin -d foundation && test -f "$$PGDATA/foundation-init.done"',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+      start_interval: 1s
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:

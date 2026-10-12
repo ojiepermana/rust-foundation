@@ -32,7 +32,7 @@ Tangkap konvensi nyata dari scaffold ke `AGENTS.md` root (gaya Rust dan TypeScri
 - [x] Review (model baru): `/check review tooling` (`docs/reviews/2026-10-12-main-tooling.md`, Approve with nits)
 - [x] Dokumentasikan: `/document tooling` (`CHANGELOG.md`)
 
-### 3. Konfigurasi tervalidasi dan environment · in-progress
+### 3. Konfigurasi tervalidasi dan environment · done
 
 Skema konfigurasi backend (nama variabel, tujuan, wajib atau opsional, default aman, secret atau bukan, aturan validasi, kebutuhan restart), precedence, pemisahan dev, test, staging, dan production, fail fast, `.env.example` tanpa secret, dan pemeriksaan misconfiguration production. Frontend memisahkan konfigurasi saat build dari runtime; semua yang dikirim ke browser bersifat publik, termasuk API base URL untuk kedua profil deployment.
 
@@ -71,7 +71,7 @@ Satu antarmuka task di root yang mengoordinasikan Cargo Workspace dan Bun Worksp
 - [ ] Review (model baru): `/check review task root dan lifecycle development`
 - [ ] Dokumentasikan: `/document task root dan lifecycle development`
 
-### 5. Infrastruktur PostgreSQL development · in-progress
+### 5. Infrastruktur PostgreSQL development · done
 
 Compose untuk development dengan PostgreSQL dan service minimum, volume persisten, prosedur reset yang ditandai destruktif, serta identitas database terpisah untuk migrator dan runtime dengan privilege minimum. Database test terisolasi dari data dev.
 
@@ -80,12 +80,12 @@ Compose untuk development dengan PostgreSQL dan service minimum, volume persiste
 **Spec:** [0003](../specs/0003-infrastruktur-postgresql-development/index.md)
 
 - [x] Rancang topologi dev dan role database (spec): `/architect infrastruktur PostgreSQL development`
-- [ ] Build it: `/develop infrastruktur PostgreSQL development`
-  - [ ] Compose, override test, dan script init role (AC-1, AC-5)
-  - [ ] Loader env, perintah `db:*`, validasi, dan konfirmasi reset (AC-1 sampai AC-4)
-  - [ ] Harness test sementara dan pembersihan (AC-6)
-  - [ ] `.env.example` bagian infrastruktur dan tsconfig test (AC-7)
-- [ ] Verifikasi: `/check verify infrastruktur PostgreSQL development`
-- [ ] Test: `/test infrastruktur PostgreSQL development`
-- [ ] Review (model baru): `/check review infrastruktur PostgreSQL development`
-- [ ] Dokumentasikan: `/document infrastruktur PostgreSQL development`
+- [x] Build it: `/develop infrastruktur PostgreSQL development` (code in `infrastructure/`, `scripts/db.ts`, `scripts/env-file.ts`, `scripts/postgres-env.ts`, `scripts/testing/postgres.ts`, `tests/integration/`)
+  - [x] Compose, override test, dan script init role (AC-1, AC-5)
+  - [x] Loader env, perintah `db:*`, validasi, dan konfirmasi reset (AC-1 sampai AC-4)
+  - [x] Harness test sementara dan pembersihan (AC-6)
+  - [x] `.env.example` bagian infrastruktur dan tsconfig test (AC-7)
+- [x] Verifikasi: `/check verify infrastruktur PostgreSQL development` (dev project `foundation-rust` lewat `db:up`, `db:status`, `db:down`; reset interaktif lewat pty pada project sementara)
+- [x] Test: `/test infrastruktur PostgreSQL development` (`scripts/db.test.ts` 110 test tanpa daemon, `tests/integration/postgres.test.ts` 40 test dengan Docker)
+- [x] Review (model baru): `/check review infrastruktur PostgreSQL development` (`docs/reviews/2026-10-12-feat-fitur-5-postgresql.md`, Approve with nits)
+- [x] Dokumentasikan: `/document infrastruktur PostgreSQL development` (`CHANGELOG.md`)

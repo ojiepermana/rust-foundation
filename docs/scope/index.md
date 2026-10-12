@@ -51,9 +51,9 @@ Microservices, Kubernetes, NATS atau Kafka, Redis, billing, multi tenancy, workf
 | --- | --- | --- | --- |
 | 1 | [Stack, audit, dan scaffold workspace](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
 | 2 | [Standar koding dan tooling](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
-| 3 | [Konfigurasi tervalidasi dan environment](<001 - Workspace.md>) | Fondasi (M0, M1) | in-progress |
+| 3 | [Konfigurasi tervalidasi dan environment](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
 | 4 | [Task root dan lifecycle development](<001 - Workspace.md>) | Fondasi (M0, M1) | in-progress |
-| 5 | [Infrastruktur PostgreSQL development](<001 - Workspace.md>) | Fondasi (M0, M1) | in-progress |
+| 5 | [Infrastruktur PostgreSQL development](<001 - Workspace.md>) | Fondasi (M0, M1) | done |
 | 6 | [Akses data dan tooling migration](<002 - Backend.md>) | Fondasi backend (M2) | planned |
 | 7 | [Model data inti](<002 - Backend.md>) | Fondasi backend (M2) | planned |
 | 8 | [Kerangka aplikasi Axum dan batas modul](<002 - Backend.md>) | Fondasi backend (M2) | planned |
@@ -88,7 +88,7 @@ Microservices, Kubernetes, NATS atau Kafka, Redis, billing, multi tenancy, workf
 
 ## Bagian
 
-- [Bagian 1: Fondasi workspace dan toolchain](<001 - Workspace.md>): fitur 1 dan 2 done; fitur 3 sampai 5 in-progress (spec tertangkap).
+- [Bagian 1: Fondasi workspace dan toolchain](<001 - Workspace.md>): fitur 1, 2, 3, dan 5 done; fitur 4 in-progress.
 - [Bagian 2: Fondasi backend dan data](<002 - Backend.md>): fitur 6 sampai 10, semua planned.
 - [Bagian 3: Kontrak API dan client Angular](<003 - Kontrak API.md>): fitur 11 sampai 13, semua planned.
 - [Bagian 4: Alur awal, yaitu auth, shell, dan RBAC](<004 - Alur awal.md>): fitur 14 sampai 21, semua planned.

@@ -11,6 +11,8 @@ Workspace Angular CLI (`angular.json` di sini) sekaligus anggota Bun Workspace b
 | `package.json` | Dependency versi tepat dan script yang semuanya diawali guard Node |
 | `angular.json` | Builder `@angular/build:application` dan `@angular/build:unit-test`, analytics mati |
 | `src/app/app.config.ts` | Provider aplikasi (tanpa zone change detection) |
+| `src/app/config/app-config.ts` | Pemuat dan validator `/config.json`, token `APP_CONFIG`, `startApp` |
+| `public/config.json` | Konfigurasi runtime publik default (`apiBaseUrl: /api`) |
 | `src/app/app.spec.ts` | Unit test bawaan |
 
 ## Commands
@@ -27,6 +29,7 @@ bun run --filter web ng <perintah>      # Angular CLI lain lewat guard
 - Setelah `ng update` atau `ng add`, kembalikan versi bertanda `^` atau `~` menjadi versi tepat.
 - Jangan menambah `zone.js`, SSR, atau `NgModule`.
 - Output build ada di `dist/web/browser/`.
+- Konfigurasi hanya dari `/config.json` saat runtime lewat `APP_CONFIG`; jangan memakai `environment*.ts`, `fileReplacements`, `define`, atau `process.env` (spec 0002). Semua isi `config.json` publik.
 
 ## Agent skills
 
@@ -36,5 +39,6 @@ bun run --filter web ng <perintah>      # Angular CLI lain lewat guard
 ## Related specs
 
 - [0001 Stack, audit, dan scaffold workspace](../../docs/specs/0001-stack-audit-scaffold-workspace/index.md)
+- [0002 Konfigurasi tervalidasi dan environment](../../docs/specs/0002-konfigurasi-tervalidasi-environment/index.md)
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._
