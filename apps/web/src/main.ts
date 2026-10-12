@@ -1,7 +1,12 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
 import { App } from './app/app';
+import { startApp } from './app/config/app-config';
 
-bootstrapApplication(App, appConfig).catch((error: unknown) => {
-  console.error(error);
+void startApp({
+  root: document.querySelector('app-root'),
+  fetchFn: fetch,
+  bootstrap: (providers) => bootstrapApplication(App, { providers }),
+  logError: (error) => {
+    console.error(error);
+  },
 });
