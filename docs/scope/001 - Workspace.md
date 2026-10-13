@@ -28,7 +28,7 @@ Tangkap konvensi nyata dari scaffold ke `AGENTS.md` root (gaya Rust dan TypeScri
 - [x] Tangkap konvensi dan pilihan tooling: `/audit` (`AGENTS.md`, `apps/api/AGENTS.md`, `apps/web/AGENTS.md`)
 - [x] Pasang tooling: `/develop tooling` (code in `eslint.config.mjs`, `.prettierrc`, `.githooks/`, `.github/workflows/ci.yml`, `scripts/generated.ts`, `scripts/check-generated.ts`)
 - [x] Verifikasi: `/check verify tooling` (salinan bersih lokal dan [run CI GitHub 38226987025](https://github.com/ojiepermana/rust-foundation/actions/runs/38226987025) lulus)
-- [x] Pastikan berjalan bersih: `/test` (`scripts/generated.test.ts`, `scripts/tooling.test.ts`, `scripts/clean-checkout.test.ts`)
+- [x] Pastikan berjalan bersih: `/test` (`scripts/generated.test.ts`, `scripts/tooling.test.ts`, `tests/integration/clean-checkout.test.ts`)
 - [x] Review (model baru): `/check review tooling` (`docs/reviews/2026-10-12-main-tooling.md`, Approve with nits)
 - [x] Dokumentasikan: `/document tooling` (`CHANGELOG.md`)
 
@@ -47,7 +47,7 @@ Skema konfigurasi backend (nama variabel, tujuan, wajib atau opsional, default a
   - [x] `.env.example` bagian backend dan aturan git (AC-5)
   - [x] `config.json` runtime dan bootstrap Angular (AC-6, AC-7)
 - [x] Verifikasi: `/check verify konfigurasi tervalidasi dan environment` (binary asli dan browser lokal; 37 langkah di `verify.md` lulus)
-- [x] Test: `/test konfigurasi tervalidasi dan environment` (`apps/api/src/config.rs`, `apps/api/tests/config.rs`, `apps/web/src/app/config/app-config.spec.ts`, `scripts/env-example.test.ts`, `scripts/clean-checkout.test.ts`)
+- [x] Test: `/test konfigurasi tervalidasi dan environment` (`apps/api/src/config.rs`, `apps/api/tests/config.rs`, `apps/web/src/app/config/app-config.spec.ts`, `scripts/env-example.test.ts`, `tests/integration/clean-checkout.test.ts`)
 - [x] Review (model baru): `/check review konfigurasi tervalidasi dan environment` (`docs/reviews/2026-10-12-feat-fitur-3-konfigurasi.md`, Approve with nits)
 - [x] Dokumentasikan: `/document konfigurasi tervalidasi dan environment` (`CHANGELOG.md`)
 

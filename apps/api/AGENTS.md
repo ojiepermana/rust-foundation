@@ -31,6 +31,7 @@ cargo test --locked -p api        # butuh port 3000 bebas
 ## Gotchas
 
 - `tests/skeleton.rs` sengaja memakai port tetap `3000`; `cargo test` gagal bila proses lain memakai port itu. Test lain memakai port bebas dan `env_clear()`.
+- Proses test yang memakai `env_clear()` tetap meneruskan `SYSTEMROOT` bila ada (contoh di `tests/common/mod.rs`); tanpa itu socket gagal di Windows, dan CI menjalankan `bun run test` di Windows (spec 0004).
 - Pesan konfigurasi dan status keluar `78` adalah kontrak (spec 0002); jangan mengubah teksnya tanpa memperbarui spec.
 - Mesin development ini menjalankan PostgreSQL Laravel Herd di port 5432 dan 5433; PostgreSQL proyek memakai `15432`.
 

@@ -43,13 +43,14 @@ Disimpan di `docs/specs/NNNN-judul/` (`index.md`, `rationale.md`, `verify.md`). 
 - Alat atau library baru hanya lewat keputusan spec (`/architect`); jangan memasang teknologi di luar spec yang berlaku.
 - File hasil generate hanya berada di root yang terdaftar di `generated-roots.json` (tambahkan root baru juga ke `.prettierignore`), dikecualikan dari lint dan format, dan ditolak `bun run check` bila tidak cocok dengan manifest. Generator wajib memanggil `writeGeneratedManifest` dari `scripts/generated.ts` setelah menulis file.
 - Konfigurasi backend hanya dari env proses (spec 0002): salin `.env.example` ke `.env`; variabel baru ditambah lewat spec, tabel skema, dan bagiannya di `.env.example`. Secret tidak pernah dicetak; frontend membaca konfigurasi publik dari `/config.json` lewat `APP_CONFIG`.
-- Script Bun yang butuh `.env` memuatnya lewat `scripts/env-file.ts` dengan `bun --no-env-file`; test membangun env sendiri dan tidak mewarisi `.env` developer.
+- Setiap segmen `bun <file>` dan `bun test` di script root wajib memakai `--no-env-file` (dijaga `scripts/task-catalog.test.ts`); script yang butuh `.env` memuatnya lewat `scripts/env-file.ts`; test membangun env sendiri dan tidak mewarisi `.env` developer.
 - Katalog task ada di `docs/development.md` dan dijaga test: script root baru wajib punya barisnya, dan nama task fitur berikutnya diambil dari tabel *Dicadangkan*. Test cepat di `scripts/`, test lambat di `tests/integration/`.
+- `bun run check`, `bun run test`, dan `bun run dev` wajib jalan di Linux, macOS, dan Windows native tanpa WSL (spec 0004, dibuktikan job CI `checks` dan `dev-lifecycle`); file teks memakai LF lewat `.gitattributes`.
 - Commit memakai conventional commits (`feat(scope): ...`); sebut nomor fitur scope bila relevan.
 
 ## Tooling
 
-Format: rustfmt dan Prettier `3.9.10` (root). Lint: Clippy, ESLint `10.12.0`, typescript-eslint `8.71.1`, angular-eslint `22.6.0`. Typecheck: `tsc` untuk `apps/web` dan `scripts/` (`@types/bun`, `@types/node` 24). Hook: `.githooks/pre-commit` lewat `core.hooksPath`, diaktifkan script `prepare` root, menjalankan `bun run check`. CI: GitHub Actions untuk fast PR checks dengan action yang dipin di spec 0001.
+Format: rustfmt dan Prettier `3.9.10` (root). Lint: Clippy, ESLint `10.12.0`, typescript-eslint `8.71.1`, angular-eslint `22.6.0`. Typecheck: `tsc` untuk `apps/web` dan `scripts/` (`@types/bun`, `@types/node` 24). Hook: `.githooks/pre-commit` lewat `core.hooksPath`, diaktifkan script `prepare` root, menjalankan `bun run check`. CI: GitHub Actions dengan action yang dipin di spec 0001; job `checks` (Ubuntu) menjalankan `check`, `test`, `test:integration`, dan `build`, job `dev-lifecycle` (macOS dan Windows) menjalankan `check`, `test`, dan `tests/integration/dev.test.ts`.
 
 ## Git
 
