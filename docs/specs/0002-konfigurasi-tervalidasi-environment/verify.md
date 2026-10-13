@@ -47,7 +47,7 @@ _Langkah diturunkan dari acceptance criteria dan tabel Value sourcing spec 0002.
 - [x] Teks error dari tabel pesan spec: bandingkan stderr langkah AC-1 dan AC-3 kata demi kata dengan tabel pesan → AC-1
 - [x] `apiBaseUrl` dari `GET /config.json` saat runtime: langkah UI di atas; nilai token per isi file dikunci oleh Vitest `app-config.spec.ts` (dua isi berbeda menghasilkan dua nilai) → AC-6
 - [x] `config.json` per profil dari `WEB_API_BASE_URL`: penulisan file milik fitur 30 dan 31; di fitur ini cukup pastikan server menolak `WEB_API_BASE_URL=//evil.example` dengan pesan grammar dan `http://` pada production dengan pesan aturan lingkungan → AC-3
-- [ ] Contoh `.env` lokal dari bagian spec 0003: milik fitur 5, di luar fitur ini
+- [x] Contoh `.env` lokal dari bagian spec 0003: dipenuhi fitur 5 (spec 0003), bagiannya ada di `.env.example` setelah penanda `# --- Development infrastructure (spec 0003) ---`
 
 ## Acceptance-criteria coverage
 

@@ -207,13 +207,13 @@ WEB_API_BASE_URL=/api
 ### Test
 
 - Unit test Rust `#[cfg(test)]` di `config.rs`: semua baris tabel pesan, grammar URL, CORS, `_FILE`, aturan lingkungan, `Debug` teredaksi, vektor URL bersama, dan sinkronisasi `SCHEMA` dengan bagian backend `.env.example` lewat `include_str!("../../../.env.example")` (baca sampai baris pertama yang diawali `# --- `).
-- Test proses Rust `apps/api/tests/config.rs` dengan helper `apps/api/tests/common/mod.rs`: setiap `Command` memakai `env_clear()` lalu env eksplisit; port bebas dari bind ke port `0`; tunggu dengan batas waktu dan `kill` agar server yang salah start tidak menggantung; test IPv6 dilewati bila `::1` tidak bisa di-bind. Mencakup status `78`, stdout kosong, header dan baris, override host dan port, penanda password di stdout dan stderr, dan `_FILE` dengan file sementara (`std::env::temp_dir`, dihapus oleh drop guard).
-- `apps/api/tests/skeleton.rs` diubah: setiap proses (instance pertama dan kedua) memakai `env_clear()`, `APP_ENV=development`, dan `DATABASE_URL=postgres://app:placeholder@127.0.0.1:5432/app_test`. Test ini tetap satu satunya yang memakai port tetap `3000`, dan pesan `cannot bind 127.0.0.1:3000` tetap diharapkan.
+- Test proses Rust `apps/api/tests/config.rs` dengan helper `apps/api/tests/common/mod.rs`: setiap `Command` memakai `env_clear()` lalu env eksplisit, ditambah `SYSTEMROOT` bila ada (dibutuhkan socket di Windows, bukan konfigurasi; spec 0004); port bebas dari bind ke port `0`; tunggu dengan batas waktu dan `kill` agar server yang salah start tidak menggantung; test IPv6 dilewati bila `::1` tidak bisa di-bind. Mencakup status `78`, stdout kosong, header dan baris, override host dan port, penanda password di stdout dan stderr, dan `_FILE` dengan file sementara (`std::env::temp_dir`, dihapus oleh drop guard).
+- `apps/api/tests/skeleton.rs` diubah: setiap proses (instance pertama dan kedua) memakai `env_clear()`, `APP_ENV=development`, dan `DATABASE_URL=postgres://app:placeholder@127.0.0.1:5432/app_test`, ditambah `SYSTEMROOT` seperti di atas. Test ini tetap satu satunya yang memakai port tetap `3000`, dan pesan `cannot bind 127.0.0.1:3000` tetap diharapkan.
 - Komentar penanda test memakai `// covers: 0002 AC-n`.
 - Vitest `apps/web/src/app/config/app-config.spec.ts`: vektor URL bersama, kunci asing, bukan objek, status non 2xx, JSON rusak, `fetchFn` dipanggil dengan `('/config.json', { cache: 'no-store', signal })`, `bootstrap` tidak dipanggil saat gagal, pesan dan `role="alert"`, nilai token saat sukses, dan dua isi `config.json` berbeda menghasilkan dua nilai berbeda. `fetch` disuntik sebagai parameter, bukan stub global.
 - `scripts/env-example.test.ts` (bun): `git check-ignore --no-index -q` benar untuk `.env`, `.env.local`, `.env.production`, `apps/web/.env`, salah untuk `.env.example`; baris secret di `.env.example` kosong.
-- Langkah baru di `scripts/clean-checkout.test.ts` setelah `build:web` (fitur 4 memindahkannya ke `tests/integration/`): build ulang web dengan env tambahan `DATABASE_URL` dan `DATABASE_MIGRATOR_URL` bernilai `postgres://canary:<uuid>@db.invalid/canary`, lalu pindai setiap file di `apps/web/dist` sebagai byte untuk uuid dan pola `postgres(ql)?://`. Pemindai diuji dulu pada file sementara yang memuat penanda agar tidak lulus kosong; `dist` harus tidak kosong. Ditambah: `dist/web/browser/config.json` sama dengan `{ "apiBaseUrl": "/api" }`, bundle utama memuat string `/config.json`, tidak ada file `environment*.ts` di antara file git di `apps/web`, kunci `fileReplacements` dan `define` tidak ada di `angular.json` (dicari rekursif), dan `process.env` tidak ada di `apps/web/src`.
-- `childEnv()` dipindah ke `scripts/test-helpers.ts` dengan argumen `extraEnv`, dan selain `NODE_ENV` serta `GIT_*` juga menghapus `APP_*`, `DATABASE_*`, `COOKIE_SECURE`, `CORS_ALLOWED_ORIGINS`, `DEV_SEED_ENABLED`, `WEB_API_BASE_URL`, dan `*_FILE`, karena `bun test` memuat `.env` dan `.env.test` developer ke proses test.
+- Langkah di `tests/integration/clean-checkout.test.ts` (dipindah dari `scripts/` oleh fitur 4, dijalankan lewat `bun run test:integration`, bukan `bun run test`) setelah `build:web`: build ulang web dengan env tambahan `DATABASE_URL` dan `DATABASE_MIGRATOR_URL` bernilai `postgres://canary:<uuid>@db.invalid/canary`, lalu pindai setiap file di `apps/web/dist` sebagai byte untuk uuid dan pola `postgres(ql)?://`. Pemindai diuji dulu pada file sementara yang memuat penanda agar tidak lulus kosong; `dist` harus tidak kosong. Ditambah: `dist/web/browser/config.json` sama dengan `{ "apiBaseUrl": "/api" }`, bundle utama (`dist/web/browser/main-*.js`) memuat string `/config.json`, tidak ada file `environment*.ts` di antara file git di `apps/web`, kunci `fileReplacements` dan `define` tidak ada di `angular.json` (dicari rekursif), dan `process.env` tidak ada di `apps/web/src`.
+- `childEnv()` dipindah ke `scripts/test-helpers.ts` dengan argumen `extraEnv`, dan selain `NODE_ENV` serta `GIT_*` juga menghapus `APP_*`, `DATABASE_*`, `COOKIE_SECURE`, `CORS_ALLOWED_ORIGINS`, `DEV_SEED_ENABLED`, `WEB_API_BASE_URL`, dan `*_FILE`, karena `bun test` biasa memuat `.env` dan `.env.test` developer ke proses test. Task root `test:scripts` dan `test:integration` memakai `--no-env-file` (spec 0004), jadi `childEnv()` tetap menjadi lapis kedua.
 
 **Data model sketch**: Tidak ada entitas persisten.
 
@@ -279,7 +279,7 @@ Tracer Bullet: jalur start backend nyata lebih dulu, lalu aturan, secret, dokume
 
 **Negative**:
 
-- `cargo run` dan `bun run run:api` sebelum fitur 4 keluar `78` tanpa env; developer memakai task fitur 4 atau mengekspor env sendiri.
+- `cargo run` langsung keluar `78` tanpa env karena backend tidak membaca `.env`; developer memakai `bun run dev` (wajib ada `.env`) atau `bun run run:api` (memuat `.env` bila ada), keduanya lewat `scripts/env-file.ts` (spec 0004), atau mengekspor env sendiri.
 - `DATABASE_URL` wajib sejak fitur 3 walaupun koneksi baru dibuka fitur 6.
 - Frontend butuh satu request tambahan sebelum bootstrap.
 - Parser buatan sendiri harus dirawat; grammar URL bisa berbeda dari parser driver database.
@@ -292,7 +292,7 @@ Tracer Bullet: jalur start backend nyata lebih dulu, lalu aturan, secret, dokume
 
 - [ ] Fitur 6 memastikan driver database membaca `sslmode` sama dengan validator ini (driver tertentu juga menerima alias `ssl-mode`).
 - [ ] Fitur 10 menentukan apakah ringkasan konfigurasi tanpa secret dicetak saat start.
-- [ ] Fitur 4 menyelaraskan task `run:api` dengan pemuatan `.env`.
+- [x] Fitur 4 menyelaraskan task `run:api` dengan pemuatan `.env`: selesai lewat `scripts/run-api.ts` (spec 0004).
 
 ## Rationale
 
